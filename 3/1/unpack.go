@@ -5,13 +5,10 @@ import (
 	"unicode"
 )
 
-// Repeat rune at least one time and append all in the end of stream (slice of runes)
+// Repeat rune n times and append all in the end of stream (slice of runes)
+// If n is 0, no append
+// If n is 1, no repeating (append 1 time)
 func repeatRune(stream []rune, r rune, n int) []rune {
-
-	// at least one time
-	if n <= 0 {
-		n = 1
-	}
 
 	// reapeat + append
 	for i := 0; i < n; i++ {
@@ -22,39 +19,28 @@ func repeatRune(stream []rune, r rune, n int) []rune {
 	return stream
 }
 
-// Convert rune into instruction int and status of converting
-// Instruction digit is digit in interval [2-9]
-func toInstructionDigit(symbol rune) (int, bool) {
+// Convert rune into digit (as int) and status of converting
+func toDigit(symbol rune) (int, bool) {
 	if !unicode.IsDigit(symbol) {
 		return 0, false
 	}
 	digit := int(symbol - '0')
-	if digit > 1 {
-		return digit, true
-	} else {
-		return 0, false
-	}
-}
-
-// Is rune instruction digit
-// Instruction digit is digit in interval [2-9]
-func isInstructionDigit(symbol rune) bool {
-	_, ok := toInstructionDigit(symbol)
-	return ok
+	return digit, true
 }
 
 //
-// Unpack compact input string represented by stream of digits [2-9] and symbols
-// Further in here, digit [2-9] would be called as instruction digit
+// Unpack compact input string represented by stream of digits and symbols
 //
-// Instruction has special meaning - it says how much times need to repeat previous symbol in output
-// Other digits - 0 and 1 - interpreted just as a symbol, without special meanings
+// Digit has special meaning - it says how much times need to repeat previous symbol in output
+// Digit 0 not output previous symbol at all
+// Digit 1 not repeat previous symbol
+//
 //
 // Invalid input string when
-//  - Two instruction digits go one after another in input
-//  - Instruction digit is in the beginning of input
+//  - Two digits go one after another in input
+//  - Digit is in the beginning of input
 //
-// Output will has no instruction digits, only symbols that could repeated by instructions
+// Output will has no digits, only symbols that could repeated by instructions
 // On error output is empty string
 //
 // Examples:
@@ -75,9 +61,9 @@ func unpack(input string) (string, error) {
 	// without terminate symbol we have to make a repeat logic one more time after loop (flushing in-between states)
 	stream = append(stream, 0)
 
-	// first symbol is instruction digit, error
-	if isInstructionDigit(stream[0]) {
-		return "", errors.New("Invalid input: instruction digit in the beginning of input")
+	// first symbol is digit => error
+	if unicode.IsDigit(stream[0]) {
+		return "", errors.New("Invalid input: digit in the beginning of input")
 	}
 
 	// will unpacking into this slice of rune, in the end it is our result
@@ -86,42 +72,48 @@ func unpack(input string) (string, error) {
 	// symbol that need to repeat
 	var candidate rune
 
-	// instruction how much times need to repeat symbol
-	var instruction int
+	// how much times need to repeat symbol, default is 1 (without repeating)
+	var count int = 1
+
+	// is previous symbol digit
+	var isDigit = false
 
 	// go through stream of symbols and digits (e.g. a14bc2d5e)
-	// if consume digit [2-9] it would be instruction for repeating
-	// otherwis repeat previous candidate and set symbol as a new candidate
+	// if consume digit it would be instruction for repeating
+	// otherwise repeat previous candidate and set current symbol as a new candidate
 	for _, symbol := range stream {
 
-		// read symbol and try to convert to instruction
-		digit, ok := toInstructionDigit(symbol)
+		// read symbol and try to convert to digit (int)
+		digit, ok := toDigit(symbol)
 
-		// it is instruction
+		// it is digit
 		if ok {
 
-			// there was instruction on previous step - two instruction digits case => error
-			if instruction > 0 {
-				return "", errors.New("Invalid input: two instruction digits go one after another")
+			// there was consumed digit on previous step - two digits case => error
+			if isDigit {
+				return "", errors.New("Invalid input: two digits go one after another")
 			}
 
-			// remeber instruction
-			instruction = digit
+			// remeber digit and a fact that there is a digit
+			count = digit
+			isDigit = true
 
 			// go to next symbol
 			continue
 		}
 
-		// ignore "empty" candidate - nothing to reapeat yet
+		// repeating symbol (ignore inital case, when noting to repeat yet)
 		if candidate != 0 {
-			result = repeatRune(result, candidate, instruction)
+			result = repeatRune(result, candidate, count)
 		}
 
 		// next candidate to repeat
 		candidate = symbol
 
-		// reset instruction
-		instruction = 0
+		// reset to defaults
+		count = 1
+		isDigit = false
+
 	}
 
 	return string(result), nil

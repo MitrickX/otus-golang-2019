@@ -21,7 +21,7 @@ func TestUnpackHasDigitInBeginning(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Error is nil\n")
-	} else if err.Error() != "Invalid input: instruction digit in the beginning of input" {
+	} else if err.Error() != "Invalid input: digit in the beginning of input" {
 		t.Errorf("Unexpected error: %s\n", err)
 	}
 
@@ -36,7 +36,7 @@ func TestUnpackHasTwoDigitsOneAfterAnother(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Error is nil\n")
-	} else if err.Error() != "Invalid input: two instruction digits go one after another" {
+	} else if err.Error() != "Invalid input: two digits go one after another" {
 		t.Errorf("Unexpected error: %s\n", err)
 	}
 
@@ -46,7 +46,7 @@ func TestUnpackHasTwoDigitsOneAfterAnother(t *testing.T) {
 }
 
 func TestUnpackValidMixed(t *testing.T) {
-	input := "a4bc2d5e"
+	input := "a4bc2d5ed1o0x9"
 	output, err := unpack(input)
 
 	if err != nil {
@@ -54,7 +54,7 @@ func TestUnpackValidMixed(t *testing.T) {
 		return
 	}
 
-	expected := "aaaabccddddde"
+	expected := "aaaabccdddddedxxxxxxxxx"
 	if output != expected {
 		t.Errorf("Output is incorrect, must be \"%s\" instread of \"%s\"\n", expected, output)
 	}
@@ -70,21 +70,6 @@ func TestUnpackValidOnlySymbols(t *testing.T) {
 	}
 
 	expected := "abcd"
-	if output != expected {
-		t.Errorf("Output is incorrect, must be \"%s\" instread of \"%s\"\n", expected, output)
-	}
-}
-
-func TestUnpackHasNoInstructionDigits(t *testing.T) {
-	input := "ab11c02qw12d"
-	output, err := unpack(input)
-
-	if err != nil {
-		t.Errorf("Error is not nil: %s\n", err)
-		return
-	}
-
-	expected := "ab11c00qw11d"
 	if output != expected {
 		t.Errorf("Output is incorrect, must be \"%s\" instread of \"%s\"\n", expected, output)
 	}
