@@ -49,7 +49,6 @@ func isInstructionDigit(symbol rune) bool {
 //
 // Instruction has special meaning - it says how much times need to repeat previous symbol in output
 // Other digits - 0 and 1 - interpreted just as a symbol, without special meanings
-// If instruction digit need to be interpreted as a symbol use escaping by symbol '\'
 //
 // Invalid input string when
 //  - Two instruction digits go one after another in input
