@@ -99,7 +99,7 @@ func unpack(input string) (string, error) {
 				// there was consumed escape symbol on previous step, two slashes case => interpreting as just symbol '\'
 				isEscape = false
 			} else {
-				// now in escape mode, next
+				// now in escape mode, next symbol if it is digit will be interpreted as just a symbol
 				isEscape = true
 
 				// go to next symbol
