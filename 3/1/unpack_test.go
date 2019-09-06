@@ -1,8 +1,6 @@
 package unpack
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestUnpackEmpty(t *testing.T) {
 	input := ""
@@ -23,37 +21,7 @@ func TestUnpackHasDigitInBeginning(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Error is nil\n")
-	} else if err.Error() != "Invalid input: digit in beginning of input" {
-		t.Errorf("Unexpected error: %s\n", err)
-	}
-
-	if output != "" {
-		t.Errorf("Output is not empty when error occurs: %s\n", output)
-	}
-}
-
-func TestUnpackHasDigit0(t *testing.T) {
-	input := "q4abe0zu2"
-	output, err := unpack(input)
-
-	if err == nil {
-		t.Errorf("Error is nil\n")
-	} else if err.Error() != "Invalid input: digit 0 in input" {
-		t.Errorf("Unexpected error: %s\n", err)
-	}
-
-	if output != "" {
-		t.Errorf("Output is not empty when error occurs: %s\n", output)
-	}
-}
-
-func TestUnpackHasDigit1(t *testing.T) {
-	input := "q4abe1zu2"
-	output, err := unpack(input)
-
-	if err == nil {
-		t.Errorf("Error is nil\n")
-	} else if err.Error() != "Invalid input: digit 1 in input" {
+	} else if err.Error() != "Invalid input: instruction digit in the beginning of input" {
 		t.Errorf("Unexpected error: %s\n", err)
 	}
 
@@ -68,7 +36,7 @@ func TestUnpackHasTwoDigitsOneAfterAnother(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Error is nil\n")
-	} else if err.Error() != "Invalid input: two digits one after another" {
+	} else if err.Error() != "Invalid input: two instruction digits go one after another" {
 		t.Errorf("Unexpected error: %s\n", err)
 	}
 
@@ -82,7 +50,7 @@ func TestUnpackValidMixed(t *testing.T) {
 	output, err := unpack(input)
 
 	if err != nil {
-		t.Errorf("Error is not nil %s\n", err)
+		t.Errorf("Error is not nil: %s\n", err)
 		return
 	}
 
@@ -97,11 +65,26 @@ func TestUnpackValidOnlySymbols(t *testing.T) {
 	output, err := unpack(input)
 
 	if err != nil {
-		t.Errorf("Error is not nil %s\n", err)
+		t.Errorf("Error is not nil: %s\n", err)
 		return
 	}
 
 	expected := "abcd"
+	if output != expected {
+		t.Errorf("Output is incorrect, must be \"%s\" instread of \"%s\"\n", expected, output)
+	}
+}
+
+func TestUnpackHasNoInstructionDigits(t *testing.T) {
+	input := "ab11c02qw12d"
+	output, err := unpack(input)
+
+	if err != nil {
+		t.Errorf("Error is not nil: %s\n", err)
+		return
+	}
+
+	expected := "ab11c00qw11d"
 	if output != expected {
 		t.Errorf("Output is incorrect, must be \"%s\" instread of \"%s\"\n", expected, output)
 	}
