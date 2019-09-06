@@ -96,7 +96,7 @@ func unpack(input string) (string, error) {
 		if symbol == '\\' {
 
 			if isEscape {
-				// there was consumed escape symbol on previous step, to slashes case => interpreting as just symbol '\'
+				// there was consumed escape symbol on previous step, two slashes case => interpreting as just symbol '\'
 				isEscape = false
 			} else {
 				// now in escape mode, next
