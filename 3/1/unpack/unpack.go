@@ -48,7 +48,7 @@ func toDigit(symbol rune) (int, bool) {
 //   "abcd" => "abcd"
 //   "45" => "" (invalid input)
 //
-func unpack(input string) (string, error) {
+func Unpack(input string) (string, error) {
 	// boundary case
 	if len(input) == 0 {
 		return "", nil

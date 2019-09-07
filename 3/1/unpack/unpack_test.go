@@ -4,7 +4,7 @@ import "testing"
 
 func TestUnpackEmpty(t *testing.T) {
 	input := ""
-	output, err := unpack(input)
+	output, err := Unpack(input)
 
 	if err != nil {
 		t.Errorf("Error not nil: %s\n", err)
@@ -17,7 +17,7 @@ func TestUnpackEmpty(t *testing.T) {
 
 func TestUnpackHasDigitInBeginning(t *testing.T) {
 	input := "4abe2zu2"
-	output, err := unpack(input)
+	output, err := Unpack(input)
 
 	if err == nil {
 		t.Errorf("Error is nil\n")
@@ -32,7 +32,7 @@ func TestUnpackHasDigitInBeginning(t *testing.T) {
 
 func TestUnpackHasTwoDigitsOneAfterAnother(t *testing.T) {
 	input := "q4abe23zu2"
-	output, err := unpack(input)
+	output, err := Unpack(input)
 
 	if err == nil {
 		t.Errorf("Error is nil\n")
@@ -47,7 +47,7 @@ func TestUnpackHasTwoDigitsOneAfterAnother(t *testing.T) {
 
 func TestUnpackValidMixed(t *testing.T) {
 	input := "a4bc2d5ed1o0x9"
-	output, err := unpack(input)
+	output, err := Unpack(input)
 
 	if err != nil {
 		t.Errorf("Error is not nil: %s\n", err)
@@ -62,7 +62,7 @@ func TestUnpackValidMixed(t *testing.T) {
 
 func TestUnpackValidOnlySymbols(t *testing.T) {
 	input := "abcd"
-	output, err := unpack(input)
+	output, err := Unpack(input)
 
 	if err != nil {
 		t.Errorf("Error is not nil: %s\n", err)
