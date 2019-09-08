@@ -181,7 +181,7 @@ func (deque *DequeInt) ReadAll() []int {
 	// allocate result slice with proper size
 	result := make([]int, n)
 
-	// on each step collect current not value and move to next node
+	// on each step collect current node value and move to next node
 	node := deque.first
 	for i := 0; i < n; i++ {
 		result[i] = node.value
