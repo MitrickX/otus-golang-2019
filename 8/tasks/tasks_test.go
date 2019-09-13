@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Test return of function that run on empty slice of tasks
+// Test return of run on empty slice of tasks
 func TestNoTasks(t *testing.T) {
 	count := Run(nil, 10, 10)
 	if count != 0 {
@@ -17,7 +17,7 @@ func TestNoTasks(t *testing.T) {
 	}
 }
 
-// Test return of function that run on one task without error
+// Test return of run on one task without error
 func TestOneTaskWithoutError(t *testing.T) {
 	tasks := []Task{
 		Task(func() error {
@@ -30,7 +30,7 @@ func TestOneTaskWithoutError(t *testing.T) {
 	}
 }
 
-// Test return of function that run on one task and it will end with error
+// Test return of run on one task and it will end with error
 func TestOneTaskWithError(t *testing.T) {
 	tasks := []Task{
 		Task(func() error {
@@ -43,7 +43,7 @@ func TestOneTaskWithError(t *testing.T) {
 	}
 }
 
-// Test return of function that run on slice with 2 tasks without errors
+// Test return of run on slice with 2 tasks without errors
 func TestTwoTaskWithoutErrors(t *testing.T) {
 	tasks := []Task{
 		Task(func() error {
@@ -59,7 +59,7 @@ func TestTwoTaskWithoutErrors(t *testing.T) {
 	}
 }
 
-// Test return of function that run on slice with 2 tasks with errors
+// Test return of run on slice with 2 tasks with errors
 func TestTwoTaskWithErrors(t *testing.T) {
 	tasks := []Task{
 		Task(func() error {
@@ -75,7 +75,7 @@ func TestTwoTaskWithErrors(t *testing.T) {
 	}
 }
 
-// Test return of function that run on slice with 2 tasks: one with error, another wihout
+// Test return of run on slice with 2 tasks: one with error, another wihout
 func TestTwoMixedTasks(t *testing.T) {
 	tasks := []Task{
 		Task(func() error {
@@ -91,7 +91,7 @@ func TestTwoMixedTasks(t *testing.T) {
 	}
 }
 
-// Test return of function that run on slice of tasks (error and without) when number of concurency is 1
+// Test return of run on slice of tasks (error and without) when number of concurency is 1
 func TestRunTasksByOne(t *testing.T) {
 	tasks := []Task{
 		Task(func() error {
@@ -117,7 +117,7 @@ func TestRunTasksByOne(t *testing.T) {
 	}
 }
 
-// Test return of function that run on slice of tasks (error and without) when number of concurency is 2
+// Test return of run on slice of tasks (error and without) when number of concurency is 2
 func TestRunTasksByTwo(t *testing.T) {
 	tasks := []Task{
 		Task(func() error {
@@ -159,35 +159,40 @@ func TestRunTasksByTwo(t *testing.T) {
 }
 
 // Test that 2 tasks run concurrently (not test result of function, just concurrency)
-// Test on slice of 20 tasks
-// Test without limit (all tasks work without errors)
+// Test on slice of 9 tasks
+// Test without limit and all tasks work without errors
+// Test takes some time
 func TestRunTasksConcurrently2(t *testing.T) {
-	testRunTasksConcurrently(t, 2)
+	testRunTasksConcurrently(t, 2, 9)
 }
 
 // Test that 4 tasks run concurrently (not test result of function, just concurrency)
-// Test on slice of 20 tasks
-// Test without limit (all tasks work without errors)
+// Test on slice of 17 tasks
+// Test without limit and all tasks work without errors
+// Test takes some time
 func TestRunTasksConcurrently4(t *testing.T) {
-	testRunTasksConcurrently(t, 4)
+	testRunTasksConcurrently(t, 4, 17)
 }
 
 // Test that 8 tasks run concurrently (not test result of function, just concurrency)
 // Test on slice of 20 tasks
-// Test without limit (all tasks work without errors)
+// Test without limit and all tasks work without errors
+// Test takes some time
 func TestRunTasksConcurrently8(t *testing.T) {
-	testRunTasksConcurrently(t, 8)
+	testRunTasksConcurrently(t, 8, 20)
 }
 
 // Test that all tasks run concurrently (not test result of function, just concurrency)
 // Test on slice of 20 tasks
-// Test without limit (all tasks work without errors)
+// Test without limit and all tasks work without errors
+// Test takes some time
 func TestRunTasksConcurrentlyAll(t *testing.T) {
-	testRunTasksConcurrently(t, -1)
+	testRunTasksConcurrently(t, -1, 20)
 }
 
 // Test how works limit of fails (not test result of function, not test of concurrency, just limitation)
 // Test on slice of 16 tasks
+// Test takes some time
 func TestRun16TasksConcurrently4AndWithLimit4(t *testing.T) {
 
 	// concurency number
@@ -298,10 +303,14 @@ func TestRun16TasksConcurrently4AndWithLimit4(t *testing.T) {
 
 // Private helper for test concurrently
 // Test that n of tasks run concurrently
-// - tasks is slice of tasks
-// - n is number of concurrency, -1 run all tasks concurrently
+// All tasks is successful (without error)
+// No test how limit works
+//
+// - n: number of concurrency, -1 run all tasks concurrently
+//
+// - taskCount: number of tasks
 // Notice that this test take some time
-func testRunTasksConcurrently(t *testing.T, n int) {
+func testRunTasksConcurrently(t *testing.T, n int, taskCount int) {
 
 	// structure for tracking start times of tasks
 	type taskStartTime struct {
@@ -322,7 +331,6 @@ func testRunTasksConcurrently(t *testing.T, n int) {
 	}
 
 	// prepare tasks list
-	taskCount := 20
 	tasks := make([]Task, taskCount)
 	for i := 0; i < taskCount; i++ {
 		tasks[i] = newTask(i + 1)

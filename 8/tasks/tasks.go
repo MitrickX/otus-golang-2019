@@ -45,15 +45,23 @@ func (r *counter) isExceed() bool {
 	return exceed
 }
 
-// Helper to run bunch of tasks
-// Get counter
+// Helper to run bunch of tasks - each task run concurrently
+// - cntr counter
 // If counter exceed stop run tasks
+// Function is blocking, using wait group so function works until all tasks stops
 func run(tasks []Task, cntr *counter) {
 
 	wg := &sync.WaitGroup{}
-	wg.Add(len(tasks))
 
 	for _, task := range tasks {
+
+		// stop run tasks
+		if cntr.isExceed() {
+			break
+		}
+
+		// increment wait group
+		wg.Add(1)
 		go func(task Task) {
 			if !cntr.isExceed() {
 				err := task()
@@ -63,19 +71,22 @@ func run(tasks []Task, cntr *counter) {
 			}
 			wg.Done()
 		}(task)
+
 	}
 
 	wg.Wait()
 }
 
-// Run tasks with concurrency number and fail limits
+// Run tasks with concurrency number and fails limit
 //
 // - n: number of tasks that could be run concurrently
-//   if n == 0 means no tasks will running
-//   if n < 0  means all tasks will running, same as n == len(tasks)
+//   n == 0 means no tasks will running
+//   n < 0  means all tasks will running, same as n == len(tasks)
 //
 // - limit: number of max errors that could be happen before stop running
-//   if limit <= 0 means limit will not taking into account (there will not stopping), same as limit = len(tasks)
+//   limit <= 0 means limit will not taking into account (there will not stopping by limit), same as limit = len(tasks)
+//
+// Returns number of fails happended
 func Run(tasks []Task, n int, limit int) int {
 
 	// boundary case
@@ -85,21 +96,23 @@ func Run(tasks []Task, n int, limit int) int {
 
 	// total number of tasks
 	tasksCount := len(tasks)
+
+	// boundary case
 	if tasksCount == 0 {
 		return 0
 	}
 
-	// number of concurrency is number of tasks
+	// n < 0: number of concurrency is number of tasks
 	if n < 0 {
 		n = tasksCount
 	}
 
-	// no limit or limit is number of tasks, which is the same
+	// limit <= 0: no limit (or in another words, limit is number of tasks)
 	if limit <= 0 {
 		limit = tasksCount
 	}
 
-	// number of concurrency is number of tasks must not be bigger number of tasks
+	// number of concurrency must not be bigger number of tasks
 	if n > tasksCount {
 		n = tasksCount
 	}
