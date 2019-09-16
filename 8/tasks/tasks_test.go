@@ -5,9 +5,46 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 )
+
+// Counter
+type counter struct {
+	value int
+	mx    *sync.RWMutex
+}
+
+// New counter struct (create mutext inside)
+func newCounter(value int) *counter {
+	return &counter{
+		value: value,
+		mx:    &sync.RWMutex{},
+	}
+}
+
+// Concurrent-safe read counter
+func (r *counter) read() int {
+	r.mx.RLock()
+	value := r.value
+	r.mx.RUnlock()
+	return value
+}
+
+// Concurrent-safe inrement counter
+func (r *counter) add(n int) {
+	r.mx.Lock()
+	r.value += n
+	r.mx.Unlock()
+}
+
+// Concurrent-safe set new value to counter
+func (r *counter) set(v int) {
+	r.mx.Lock()
+	r.value += v
+	r.mx.Unlock()
+}
 
 // Test return of run on empty slice of tasks
 func TestNoTasks(t *testing.T) {
@@ -158,48 +195,163 @@ func TestRunTasksByTwo(t *testing.T) {
 	}
 }
 
-// Test that 2 tasks run concurrently (not test result of function, just concurrency)
-// Test on slice of 9 tasks
-// Test without limit and all tasks work without errors
+// Test that tasks run concurrently and utilize all available workers
 // Test takes some time
-func TestRunTasksConcurrently2(t *testing.T) {
-	testRunTasksConcurrently(t, 2, 9)
+func TestRunTasksConcurrently(t *testing.T) {
+
+	// counter to tracking number of task running at the same time
+	runningTasksCounter := newCounter(0)
+
+	// counter that will tell that all tasks are done
+	doneTasksCounter := newCounter(0)
+
+	// quick task constructor
+	newQuickTask := func(id int) Task {
+		return Task(func() error {
+
+			runningTasksCounter.add(1)
+
+			time.Sleep(time.Duration(250) * time.Millisecond)
+
+			runningTasksCounter.add(-1)
+			doneTasksCounter.add(1)
+
+			return nil
+		})
+	}
+
+	// middle on duration task constructor
+	newMiddleTask := func(id int) Task {
+		return Task(func() error {
+
+			runningTasksCounter.add(1)
+
+			time.Sleep(time.Duration(500) * time.Millisecond)
+
+			runningTasksCounter.add(-1)
+			doneTasksCounter.add(1)
+
+			return nil
+		})
+	}
+
+	// long task constructor
+	newLongTask := func(id int) Task {
+		return Task(func() error {
+
+			runningTasksCounter.add(1)
+
+			time.Sleep(time.Duration(1) * time.Second)
+
+			runningTasksCounter.add(-1)
+			doneTasksCounter.add(1)
+
+			return nil
+		})
+	}
+
+	// work scenario
+	tasks := []Task{
+		newQuickTask(1),
+		newLongTask(2),
+		newMiddleTask(3),
+		newMiddleTask(4),
+		newQuickTask(5),
+		newLongTask(6),
+		newLongTask(7),
+		newQuickTask(8),
+		newMiddleTask(9),
+		newLongTask(10),
+		newQuickTask(11),
+		newQuickTask(12),
+		newLongTask(13),
+		newMiddleTask(14),
+		newQuickTask(15),
+		newQuickTask(16),
+		newMiddleTask(17),
+		newQuickTask(18),
+		newQuickTask(19),
+		newLongTask(20),
+	}
+
+	tasksCount := len(tasks)
+
+	// concurrency number
+	n := 3
+
+	go Run(tasks, n, -1)
+
+	// peak (max) count of tasks running at a time
+	peakRunningTasksCount := newCounter(0)
+
+	// measure values of running tasks count
+	var runningTasksCounts []int
+
+	// measure ticker
+	ticker := time.NewTicker(time.Duration(50) * time.Millisecond)
+
+	// measure loop
+	for range ticker.C {
+		runningTasksCounts = append(runningTasksCounts, runningTasksCounter.read())
+
+		// calc peam (max) measure
+		if runningTasksCounter.read() > peakRunningTasksCount.read() {
+			peakRunningTasksCount.set(runningTasksCounter.read())
+		}
+
+		// after all done stop measure loop (clean ticker)
+		if doneTasksCounter.read() >= tasksCount {
+			ticker.Stop()
+			break
+		}
+	}
+
+	// peak number of tasks running must not be greater than our concurrency number
+	if peakRunningTasksCount.read() > n {
+		t.Errorf("peak tasks count (%d) exceed %d", peakRunningTasksCount.read(), n)
+	}
+
+	// frequencies of measure values (peak and other all together);
+	// peak measure must be more frequent, cause runner must fully utilize all available workers (=n)
+	peakCountValueFrequency := 0
+	otherCountValuesFrequency := 0
+
+	for _, value := range runningTasksCounts {
+		if peakRunningTasksCount.read() == value {
+			peakCountValueFrequency++
+		} else {
+			otherCountValuesFrequency++
+		}
+	}
+
+	if peakCountValueFrequency <= otherCountValuesFrequency {
+		msg := `tasks count %d at a time happened less or equal than other count at a time.
+Tasks count %d happened %d times
+Other counts all together happened %d times.
+Looks like runner not fully utilizes all available workers`
+		t.Errorf(
+			msg,
+			peakRunningTasksCount.read(),
+			peakRunningTasksCount.read(),
+			peakCountValueFrequency,
+			otherCountValuesFrequency,
+		)
+	}
+
 }
 
-// Test that 4 tasks run concurrently (not test result of function, just concurrency)
-// Test on slice of 17 tasks
-// Test without limit and all tasks work without errors
+// Test how works limit of fails
 // Test takes some time
-func TestRunTasksConcurrently4(t *testing.T) {
-	testRunTasksConcurrently(t, 4, 17)
-}
-
-// Test that 8 tasks run concurrently (not test result of function, just concurrency)
-// Test on slice of 20 tasks
-// Test without limit and all tasks work without errors
-// Test takes some time
-func TestRunTasksConcurrently8(t *testing.T) {
-	testRunTasksConcurrently(t, 8, 20)
-}
-
-// Test that all tasks run concurrently (not test result of function, just concurrency)
-// Test on slice of 20 tasks
-// Test without limit and all tasks work without errors
-// Test takes some time
-func TestRunTasksConcurrentlyAll(t *testing.T) {
-	testRunTasksConcurrently(t, -1, 20)
-}
-
-// Test how works limit of fails (not test result of function, not test of concurrency, just limitation)
-// Test on slice of 16 tasks
-// Test takes some time
-func TestRun16TasksConcurrently4AndWithLimit4(t *testing.T) {
+func TestRunTasksConcurrentlyWithLimit(t *testing.T) {
 
 	// concurency number
 	n := 4
 
 	// limit of fails
 	limit := 4
+
+	// work time of one task (in ms)
+	workTime := 250
 
 	// successfull tasks will send own id after been worked,
 	okCh := make(chan int, 100)
@@ -210,7 +362,7 @@ func TestRun16TasksConcurrently4AndWithLimit4(t *testing.T) {
 	// successfull task constructor
 	newOkTask := func(id int) Task {
 		return Task(func() error {
-			time.Sleep(time.Duration(1) * time.Second)
+			time.Sleep(time.Duration(workTime) * time.Millisecond)
 			okCh <- id
 			return nil
 		})
@@ -219,49 +371,59 @@ func TestRun16TasksConcurrently4AndWithLimit4(t *testing.T) {
 	// fail task constructor
 	newFailTask := func(id int) Task {
 		return Task(func() error {
-			time.Sleep(time.Duration(1) * time.Second)
+			time.Sleep(time.Duration(workTime) * time.Millisecond)
 			err := fmt.Errorf("task #%d failed", id)
 			failCh <- id
 			return err
 		})
 	}
 
-	// we have 4 bunch of tasks, in each bunch we have 4 of concurently running tasks
-	// After 5th failed task runner already should not run new tasks (tasks from another banch),
-	// but another tasks in current banch could be worked or could be not (cause we already run goroutine for these tasks)
+	// Prepare work scenario
+	// Failure limit is 4, so key is 5th failure task
+	// To time this task done runner could possible already had get 3 more tasks in running state (#14, #15, #16)
 	tasks := []Task{
 
-		// 1st bunch of concurently running tasks
 		newFailTask(1),
 		newOkTask(2),
 		newOkTask(3),
 		newFailTask(4),
 
-		// 2nd bunch of concurently running tasks
 		newOkTask(5),
 		newFailTask(6),
 		newOkTask(7),
 		newOkTask(8),
 
-		// 3d bunch of concurently running tasks
 		newFailTask(9),
-		newFailTask(10),
-		newOkTask(11), // task could be worked or could be not
-		newOkTask(12), // task could be worked or could be not
+		newFailTask(10), // <-- 5th failure task
+		newOkTask(11),   // it is possible could be executed after 5th failure
+		newOkTask(12),   // it is possible could be executed after 5th failure
 
-		// 4th bunch of concurently running tasks (all tasks for sure must not be worked)
-		newOkTask(13),
-		newFailTask(14),
-		newOkTask(15),
-		newOkTask(16),
+		newOkTask(13),   // it is possible could be executed after 5th failure
+		newFailTask(14), // it is possible could be executed after 5th failure
+		newOkTask(15),   // it is possible could be executed after 5th failure
+		newOkTask(16),   // it is possible could be executed after 5th failure
+
+		newOkTask(17),   // unlikly could be executed after 5th failure
+		newFailTask(18), // ...
+		newOkTask(19),
+		newOkTask(20),
+
+		newOkTask(21),
+		newFailTask(22),
+		newOkTask(23),
+		newOkTask(24),
 	}
 
 	// Run tasks
 	go Run(tasks, n, limit)
 
-	// bunch tasks takes 1 s (cause of concurently)
-	// 4 bunches takes 4 s (bunckes run is sequential) + 500ms for for sure
-	time.Sleep(time.Duration(4500) * time.Millisecond)
+	// total count of all tasks
+	tasksCount := len(tasks)
+
+	// calculate total worktime (+500 ms just for sure)
+	totalWorkTime := (workTime*tasksCount)/n + 500
+
+	time.Sleep(time.Duration(totalWorkTime) * time.Millisecond)
 
 	// read ids from fail channel
 	failChLen := len(failCh)
@@ -271,12 +433,16 @@ func TestRun16TasksConcurrently4AndWithLimit4(t *testing.T) {
 		runFailTaskIds[i] = v
 	}
 
-	expectedRunFailTaskIds := []int{1, 4, 6, 9, 10}
+	expectedRunFailTaskIds1 := []int{1, 4, 6, 9, 10}
+	expectedRunFailTaskIds2 := []int{1, 4, 6, 9, 10, 14}
 
-	// limit is 4, after 5th fail task (#10) runner must not run another bunch, next (6th) fail task (#14) is never run
-	//   => len == 5
-	if !isEqualsIntSlicesAsSets(runFailTaskIds, expectedRunFailTaskIds) {
-		t.Errorf("expected %v instread of %v", expectedRunFailTaskIds, runFailTaskIds)
+	// need to sort so we can use equal
+	sort.Ints(runFailTaskIds)
+
+	// limit is 4, to time 5th fail task (#10) done, runner could possible already had get 3 more tasks in running state (#14,#15,#16)
+	if !reflect.DeepEqual(runFailTaskIds, expectedRunFailTaskIds1) &&
+		!reflect.DeepEqual(runFailTaskIds, expectedRunFailTaskIds2) {
+		t.Errorf("could expect %v or %v, instread of %v", expectedRunFailTaskIds1, expectedRunFailTaskIds2, runFailTaskIds)
 	}
 
 	// read ids from ok channel
@@ -287,132 +453,22 @@ func TestRun16TasksConcurrently4AndWithLimit4(t *testing.T) {
 		runOkTaskIds[i] = v
 	}
 
-	expectedRunOkTasks1Ids := []int{2, 3, 5, 7, 8}
-	expectedRunOkTasks2Ids := []int{2, 3, 5, 7, 8, 11}
-	expectedRunOkTasks3Ids := []int{2, 3, 5, 7, 8, 11, 12}
+	// need to sort so we can use equal
+	sort.Ints(runOkTaskIds)
 
-	// after fail task #10 we could has worked tasks #11, #12, but not from another bunch
-	ok := isEqualsIntSlicesAsSets(runOkTaskIds, expectedRunOkTasks1Ids) ||
-		isEqualsIntSlicesAsSets(runOkTaskIds, expectedRunOkTasks2Ids) ||
-		isEqualsIntSlicesAsSets(runOkTaskIds, expectedRunOkTasks3Ids)
-	if !ok {
-		t.Errorf("expected %v or %v or %v, instread of %v", expectedRunOkTasks1Ids, expectedRunOkTasks2Ids,
-			expectedRunOkTasks3Ids, runOkTaskIds)
+	expectedRunOkTasksIds1 := []int{2, 3, 5, 7, 8, 11}
+	expectedRunOkTasksIds2 := []int{2, 3, 5, 7, 8, 11, 12}
+	expectedRunOkTasksIds3 := []int{2, 3, 5, 7, 8, 11, 12, 13}
+	expectedRunOkTasksIds4 := []int{2, 3, 5, 7, 8, 11, 12, 13, 15}
+	expectedRunOkTasksIds5 := []int{2, 3, 5, 7, 8, 11, 12, 13, 15, 16}
+
+	// limit is 4, to time 5th fail task (#10) done, runner could possible already had get 3 more tasks in running state (#14,#15,#16)
+	if !reflect.DeepEqual(runOkTaskIds, expectedRunOkTasksIds1) &&
+		!reflect.DeepEqual(runOkTaskIds, expectedRunOkTasksIds2) &&
+		!reflect.DeepEqual(runOkTaskIds, expectedRunOkTasksIds3) &&
+		!reflect.DeepEqual(runOkTaskIds, expectedRunOkTasksIds4) &&
+		!reflect.DeepEqual(runOkTaskIds, expectedRunOkTasksIds5) {
+		t.Errorf("could expect %v or %v or %v or %v or %v, instread of %v", expectedRunOkTasksIds1, expectedRunOkTasksIds2,
+			expectedRunOkTasksIds3, expectedRunOkTasksIds4, expectedRunOkTasksIds5, runOkTaskIds)
 	}
-}
-
-// Private helper for test concurrently
-// Test that n of tasks run concurrently
-// All tasks is successful (without error)
-// No test how limit works
-//
-// - n: number of concurrency, -1 run all tasks concurrently
-//
-// - taskCount: number of tasks
-// Notice that this test take some time
-func testRunTasksConcurrently(t *testing.T, n int, taskCount int) {
-
-	// structure for tracking start times of tasks
-	type taskStartTime struct {
-		id    int
-		start int64 // UnixNano results
-	}
-
-	// tasks will send start times
-	startTimeCh := make(chan taskStartTime, 100)
-
-	// task constructor
-	newTask := func(id int) Task {
-		return Task(func() error {
-			time.Sleep(time.Duration(1) * time.Second)
-			startTimeCh <- taskStartTime{id, time.Now().UnixNano()}
-			return nil
-		})
-	}
-
-	// prepare tasks list
-	tasks := make([]Task, taskCount)
-	for i := 0; i < taskCount; i++ {
-		tasks[i] = newTask(i + 1)
-	}
-
-	if n < 0 {
-		n = taskCount
-	}
-
-	// Run tasks
-	go Run(tasks, n, -1)
-
-	// calculate number of bunches
-	bunchNum := taskCount / n
-	if taskCount%n > 0 {
-		bunchNum++
-	}
-
-	// Tasks in each bunch takes 1 s, so also a bunch (cause of concurently)
-	// Sleep whole time for all bunches + 500 ms just for sure
-	time.Sleep(time.Duration(bunchNum*1000+500) * time.Millisecond)
-
-	// read start times from channel
-	startTimeChLen := len(startTimeCh)
-	startTimes := make([]taskStartTime, startTimeChLen)
-	for i := 0; i < startTimeChLen; i++ {
-		startTimes[i] = <-startTimeCh
-	}
-
-	// sort by id of tasks, so we can correct testing each bunch of timings
-	sort.Slice(startTimes, func(i, j int) bool {
-		return startTimes[i].id < startTimes[j].id
-	})
-
-	// slice startTimes by n
-	for offset := 0; offset < taskCount; offset += n {
-
-		// id of bunch (slice)
-		bunchId := (offset / n) + 1
-
-		// calc low:high of slice
-		low := offset
-		high := offset + n
-		if high >= taskCount {
-			high = taskCount
-		}
-
-		// start task times of bunch
-		times := startTimes[low:high]
-
-		// min, max of the times
-		var minTime, maxTime int64
-		for _, item := range times {
-			if minTime == 0 || item.start < minTime {
-				minTime = item.start
-			}
-			if maxTime == 0 || item.start > maxTime {
-				maxTime = item.start
-			}
-		}
-
-		// all tasks in bunch run concurrently and must started in time range of 1 second (cause each task in bunch concurrent and work 1 second)
-		diff := maxTime - minTime
-		if diff > int64(time.Second) {
-			diffS := float64(diff) / float64(time.Second)
-			t.Errorf("bunch #%d of tasks must start concurrently in time range of 1 second, instread of %0.3f s", bunchId, diffS)
-		}
-	}
-}
-
-// Check if 2 int slices are equals without mattering values' order
-func isEqualsIntSlicesAsSets(a []int, b []int) bool {
-	a = cloneIntSlice(a)
-	b = cloneIntSlice(b)
-	sort.Ints(a)
-	sort.Ints(b)
-	return reflect.DeepEqual(a, b)
-}
-
-// Clone int slice
-func cloneIntSlice(a []int) []int {
-	b := make([]int, len(a))
-	copy(a, b)
-	return b
 }
