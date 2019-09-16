@@ -10,12 +10,12 @@ type Task func() error
 // Concurrent-safe counter with limit - limiter
 // If limit exceed current counter isExceed will tell about it
 type limiter struct {
-	count int // current limiter
-	limit int // limit
-	mx    *sync.RWMutex
+	count int           // current count
+	limit int           // limit
+	mx    *sync.RWMutex // mutext
 }
 
-// New limiter struct (create mutext inside)
+// New limiter struct (create mutex inside)
 func newLimiter(limit int) *limiter {
 	return &limiter{
 		mx:    &sync.RWMutex{},
@@ -66,14 +66,14 @@ func runWorker(tasks <-chan Task, limiter *limiter, wg *sync.WaitGroup) {
 //
 // - n:
 // 		Number of tasks that could be run concurrently (at the same time).
-//     	Runner fully utilize all available goroutines-workers (<= n) at a time
+// 		Runner fully utilize all available goroutines-workers (<= n) at a time
 //   n == 0 means no tasks will running
 //   n < 0  means all tasks will running, same as n == len(tasks)
 //
 // - limit:
-//     	Number of max errors that allowed be happen before runner will stop
-//     	After runner have stop some tasks could be possible already in running state.
-//	   	So they will work until stops by itself, and Run will wait them
+// 		Number of max errors that allowed be happen before runner will stop
+// 		After runner have stop some tasks could be possible already in running state.
+// 		So they will work until stops by itself, and Run will wait them
 //   limit <= 0 means limit will not taking into account (there will not stopping by limit), same as limit = len(tasks)
 //
 // Returns number of fails happended
