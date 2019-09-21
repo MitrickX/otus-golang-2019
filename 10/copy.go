@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const bufferSize = 4096
+const chunkSize = 512
 
 type copyProgress struct {
 	fileSize     int64
-	bufferSize   int
+	chunkSize    int
 	progressSize int64
 }
 
@@ -64,15 +64,22 @@ func (cp *copyProgress) progressString(stop bool) string {
 	return string(out)
 }
 
-func newCopyProgress(fileSize int64, bufferSize int) *copyProgress {
+func newCopyProgress(fileSize int64, chunkSize int) *copyProgress {
 	cp := &copyProgress{
-		fileSize:   fileSize,
-		bufferSize: bufferSize,
+		fileSize:  fileSize,
+		chunkSize: chunkSize,
 	}
 	return cp
 }
 
-func copyFile(srcFilePath string, dstFilePath string, withProgress bool) (resErr error) {
+type copyOptions struct {
+	srcFilePath  string
+	dstFilePath  string
+	withProgress bool
+	chunkSize    int
+}
+
+func copyFile(options copyOptions) (resErr error) {
 
 	// helper to close file
 	closeFile := func(file *os.File) {
@@ -84,7 +91,7 @@ func copyFile(srcFilePath string, dstFilePath string, withProgress bool) (resErr
 		}
 	}
 
-	srcFile, err := os.Open(srcFilePath)
+	srcFile, err := os.Open(options.srcFilePath)
 	if err != nil {
 		resErr = err
 		return
@@ -92,7 +99,7 @@ func copyFile(srcFilePath string, dstFilePath string, withProgress bool) (resErr
 
 	defer closeFile(srcFile)
 
-	dstFile, err := os.Create(dstFilePath)
+	dstFile, err := os.Create(options.dstFilePath)
 	if err != nil {
 		resErr = err
 		return
@@ -108,11 +115,15 @@ func copyFile(srcFilePath string, dstFilePath string, withProgress bool) (resErr
 	fileSize := stat.Size()
 
 	var progress *copyProgress
-	if withProgress {
-		progress = newCopyProgress(fileSize, bufferSize)
+	if options.withProgress {
+		progress = newCopyProgress(fileSize, chunkSize)
 	}
 
-	buffer := make([]byte, bufferSize)
+	if options.chunkSize == 0 {
+		options.chunkSize = chunkSize
+	}
+
+	buffer := make([]byte, options.chunkSize)
 
 	for {
 		n, err := srcFile.Read(buffer)
@@ -157,28 +168,27 @@ func copyFile(srcFilePath string, dstFilePath string, withProgress bool) (resErr
 
 }
 
-type args struct {
-	srcFilePath *string
-	dstFilePath *string
-}
-
-func parseArgs() args {
-	a := args{}
+func parseArgs() copyOptions {
+	options := copyOptions{}
 
 	flagSetOut := &strings.Builder{}
 
 	flagSet := flag.NewFlagSet("argParser", flag.ContinueOnError)
 	flagSet.SetOutput(flagSetOut)
 
-	a.srcFilePath = flagSet.String("if", "", "path to input file")
-	a.dstFilePath = flagSet.String("of", "", "path to output file")
+	srcFilePathPtr := flagSet.String("if", "", "path to input file")
+	dstFilePathPtr := flagSet.String("of", "", "path to output file")
+
+	chunkSizePtr := flagSet.Int("bs", 0, "chunk size of bytes to read and write at once")
 
 	// helper to print defaults (extendend variant)
 	printDefaults := func() {
+		flagSetOut.Reset()
 		flagSet.PrintDefaults()
 		defaults := flagSetOut.String()
 		defaults = strings.Replace(defaults, "-if string", "-if string (required)", 1)
-		defaults = strings.Replace(defaults, "-of string", "-if string (required)", 1)
+		defaults = strings.Replace(defaults, "-of string", "-of string (required)", 1)
+		defaults = strings.Replace(defaults, "-bs int", fmt.Sprintf("-bs int [optional] default is %d", chunkSize), 1)
 		fmt.Fprintln(os.Stderr, defaults)
 	}
 
@@ -189,22 +199,28 @@ func parseArgs() args {
 		os.Exit(2)
 	}
 
-	if *a.srcFilePath == "" {
+	options.srcFilePath = *srcFilePathPtr
+	options.dstFilePath = *dstFilePathPtr
+	options.chunkSize = *chunkSizePtr
+
+	if options.srcFilePath == "" {
 		printDefaults()
 		os.Exit(2)
 	}
 
-	if *a.dstFilePath == "" {
+	if options.dstFilePath == "" {
 		printDefaults()
 		os.Exit(2)
 	}
 
-	return a
+	options.withProgress = true
+
+	return options
 }
 
 func main() {
-	args := parseArgs()
-	err := copyFile(*args.srcFilePath, *args.dstFilePath, true)
+	options := parseArgs()
+	err := copyFile(options)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

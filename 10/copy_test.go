@@ -28,7 +28,12 @@ func TestCopy(t *testing.T) {
 		t.Fatal("generated files check sums are equal")
 	}
 
-	err := copyFile(srcFilePath, dstFilePath, false)
+	options := copyOptions{
+		srcFilePath:  srcFilePath,
+		dstFilePath:  dstFilePath,
+		withProgress: false,
+	}
+	err := copyFile(options)
 	if err != nil {
 		t.Errorf("while copy file error happend %s\n", err)
 	}
@@ -39,6 +44,8 @@ func TestCopy(t *testing.T) {
 	}
 
 }
+
+// TODO test for chunkSize
 
 func generateFile(size int64) string {
 	file, err := ioutil.TempFile(os.TempDir(), "copy_unit_test")
