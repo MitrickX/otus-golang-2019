@@ -9,7 +9,7 @@ import (
 )
 
 // default chunk size of bytes to read and write at once
-const chunkSize = 512
+const defaultChunkSize = 512
 
 // copy process struct to represent progress bar in terminal
 type copyProgress struct {
@@ -90,6 +90,9 @@ type copyOptions struct {
 	dstFilePath  string // path to destination file
 	withProgress bool   // need print progress bar?
 	chunkSize    int    // chunk size of coping
+	skip         int    // skip n chunks in source file
+	seek         int    // skip n chunks in destination file
+	count        int    // copy count chunks only
 }
 
 // copy file
@@ -105,6 +108,7 @@ func copyFile(options copyOptions) (resErr error) {
 		}
 	}
 
+	// open src file
 	srcFile, err := os.Open(options.srcFilePath)
 	if err != nil {
 		resErr = err
@@ -113,6 +117,7 @@ func copyFile(options copyOptions) (resErr error) {
 
 	defer closeFile(srcFile)
 
+	// open dst file
 	dstFile, err := os.Create(options.dstFilePath)
 	if err != nil {
 		resErr = err
@@ -121,6 +126,7 @@ func copyFile(options copyOptions) (resErr error) {
 
 	defer closeFile(dstFile)
 
+	// define size of src file
 	stat, err := srcFile.Stat()
 	if err != nil {
 		resErr = err
@@ -128,25 +134,77 @@ func copyFile(options copyOptions) (resErr error) {
 	}
 	fileSize := stat.Size()
 
+	// chunk size for copy
+	chunkSize := options.chunkSize
+	if options.chunkSize == 0 {
+		chunkSize = defaultChunkSize
+	}
+
+	// skip in bytes
+	var skip int64
+	if options.skip > 0 {
+		skip = int64(options.skip) * int64(chunkSize)
+	}
+
+	// seek in bytes
+	var seek int64
+	if options.seek > 0 {
+		seek = int64(options.seek) * int64(chunkSize)
+	}
+
+	// progress bar, if no need progress bar there is nil
 	var progress *copyProgress
 	if options.withProgress {
-		progress = newCopyProgress(fileSize, chunkSize)
+		// total size of all work
+		var totalSize int64
+		if options.count > 0 {
+			totalSize = int64(options.count) * int64(chunkSize)
+		} else {
+			totalSize = fileSize - skip
+		}
+		progress = newCopyProgress(totalSize, chunkSize)
 	}
 
-	if options.chunkSize == 0 {
-		options.chunkSize = chunkSize
+	// init buffer (slice) of chunk size
+	buffer := make([]byte, chunkSize)
+
+	// skip in src file
+	_, err = srcFile.Seek(skip, 0)
+	if err != nil {
+		resErr = err
+		return
 	}
 
-	buffer := make([]byte, options.chunkSize)
+	// seek in dst file
+	_, err = dstFile.Seek(seek, 0)
+	if err != nil {
+		resErr = err
+		return
+	}
 
+	// count of chunk copied so far
+	count := 0
+
+	// main copy loop (read chunk from src and write it to dst)
 	for {
+
+		if options.count > 0 && count >= options.count {
+			break
+		}
+		count++
+
+		// read chunk from src
 		n, err := srcFile.Read(buffer)
+
+		// eof - copy is done
 		if err == io.EOF {
 			if progress != nil {
 				progress.done()
 			}
 			break
 		}
+
+		// some problem while reading, progress stop, return error
 		if err != nil {
 			if progress != nil {
 				progress.stop()
@@ -155,8 +213,10 @@ func copyFile(options copyOptions) (resErr error) {
 			return
 		}
 
+		// write chunk to src
 		nw, err := dstFile.Write(buffer[0:n])
 
+		// some problem while writing, progress stop, return error
 		if err != nil {
 			if progress != nil {
 				progress.stop()
@@ -165,6 +225,7 @@ func copyFile(options copyOptions) (resErr error) {
 			return
 		}
 
+		// numbers ofwritten and read bytes are not equals, stop progress, return error
 		if n != nw {
 			if progress != nil {
 				progress.stop()
@@ -173,6 +234,7 @@ func copyFile(options copyOptions) (resErr error) {
 			return
 		}
 
+		// print progress
 		if progress != nil {
 			progress.step(n)
 		}
@@ -198,6 +260,10 @@ func parseArgs() copyOptions {
 
 	chunkSizePtr := flagSet.Int("bs", 0, "chunk size of bytes to read and write at once")
 
+	skipPtr := flagSet.Int("skip", 0, "skip n chunks in input file")
+	seekPtr := flagSet.Int("seek", 0, "skip n chunks in output file")
+	countPtr := flagSet.Int("count", 0, "copy count chunks only")
+
 	// helper to print defaults (extendend variant with extra info like required and etc)
 	printDefaults := func() {
 
@@ -211,7 +277,10 @@ func parseArgs() copyOptions {
 		defaults := flagSetOut.String()
 		defaults = strings.Replace(defaults, "-if string", "-if string (required)", 1)
 		defaults = strings.Replace(defaults, "-of string", "-of string (required)", 1)
-		defaults = strings.Replace(defaults, "-bs int", fmt.Sprintf("-bs int [optional] default is %d", chunkSize), 1)
+		defaults = strings.Replace(defaults, "-bs int", fmt.Sprintf("-bs int [optional] default is %d", defaultChunkSize), 1)
+		defaults = strings.Replace(defaults, "-skip int", "-skip int [optional] default is no skip", 1)
+		defaults = strings.Replace(defaults, "-seek int", "-seek int [optional] default is no seek", 1)
+		defaults = strings.Replace(defaults, "-count int", "-count int [optional] default is copy whole input file", 1)
 
 		// print our defaults into stderr
 		fmt.Fprintln(os.Stderr, defaults)
@@ -229,6 +298,9 @@ func parseArgs() copyOptions {
 	options.srcFilePath = *srcFilePathPtr
 	options.dstFilePath = *dstFilePathPtr
 	options.chunkSize = *chunkSizePtr
+	options.skip = *skipPtr
+	options.seek = *seekPtr
+	options.count = *countPtr
 
 	// required
 	if options.srcFilePath == "" {
