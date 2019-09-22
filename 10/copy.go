@@ -8,36 +8,56 @@ import (
 	"strings"
 )
 
+// default chunk size of bytes to read and write at once
 const chunkSize = 512
 
+// copy process struct to represent progress bar in terminal
 type copyProgress struct {
 	fileSize     int64
 	chunkSize    int
 	progressSize int64
 }
 
+// copy process constructor
+func newCopyProgress(fileSize int64, chunkSize int) *copyProgress {
+	cp := &copyProgress{
+		fileSize:  fileSize,
+		chunkSize: chunkSize,
+	}
+	return cp
+}
+
+// add n bytes copied on step (generally it less or equal chunkSize)
 func (cp *copyProgress) add(n int) {
 	cp.progressSize += int64(n)
 }
 
+// total progress in percentages
 func (cp *copyProgress) progress() float32 {
 	return float32(float64(cp.progressSize)/float64(cp.fileSize)) * 100.0
 }
 
+// print progress of one step on coping (n bytes has been copied)
 func (cp *copyProgress) step(n int) {
 	cp.add(n)
 	fmt.Print(cp.progressString(false))
 }
 
+// print 100% done progress bar
 func (cp *copyProgress) done() {
 	cp.progressSize = cp.fileSize
 	fmt.Print(cp.progressString(true))
 }
 
+// print some stoped progress bar (if was failed somewhere in copy)
 func (cp *copyProgress) stop() {
 	fmt.Print(cp.progressString(true))
 }
 
+// helper that prints progress string
+// - stop:
+//     means it will not priting anymore (print out \n symbol at the end)
+//     otherwise print \r and it will printing yet in this line of terminal
 func (cp *copyProgress) progressString(stop bool) string {
 	progress := cp.progress()
 
@@ -64,21 +84,15 @@ func (cp *copyProgress) progressString(stop bool) string {
 	return string(out)
 }
 
-func newCopyProgress(fileSize int64, chunkSize int) *copyProgress {
-	cp := &copyProgress{
-		fileSize:  fileSize,
-		chunkSize: chunkSize,
-	}
-	return cp
-}
-
+// options of copy function
 type copyOptions struct {
-	srcFilePath  string
-	dstFilePath  string
-	withProgress bool
-	chunkSize    int
+	srcFilePath  string // path to source file
+	dstFilePath  string // path to destination file
+	withProgress bool   // need print progress bar?
+	chunkSize    int    // chunk size of coping
 }
 
+// copy file
 func copyFile(options copyOptions) (resErr error) {
 
 	// helper to close file
@@ -168,9 +182,12 @@ func copyFile(options copyOptions) (resErr error) {
 
 }
 
+// parse cli arguments and return copyOptions struct for calling copyFile with it
 func parseArgs() copyOptions {
+	// options struct that will be filled after flag parsing
 	options := copyOptions{}
 
+	// output for flag set, need to print extended variant of defaults (aka usage or help)
 	flagSetOut := &strings.Builder{}
 
 	flagSet := flag.NewFlagSet("argParser", flag.ContinueOnError)
@@ -181,17 +198,26 @@ func parseArgs() copyOptions {
 
 	chunkSizePtr := flagSet.Int("bs", 0, "chunk size of bytes to read and write at once")
 
-	// helper to print defaults (extendend variant)
+	// helper to print defaults (extendend variant with extra info like required and etc)
 	printDefaults := func() {
+
+		// there is call inside of flagSet.Parse on error, so prevent double printing we should clear output
 		flagSetOut.Reset()
+
+		// print defaults in our output
 		flagSet.PrintDefaults()
+
+		// extend out print defaults
 		defaults := flagSetOut.String()
 		defaults = strings.Replace(defaults, "-if string", "-if string (required)", 1)
 		defaults = strings.Replace(defaults, "-of string", "-of string (required)", 1)
 		defaults = strings.Replace(defaults, "-bs int", fmt.Sprintf("-bs int [optional] default is %d", chunkSize), 1)
+
+		// print our defaults into stderr
 		fmt.Fprintln(os.Stderr, defaults)
 	}
 
+	// parse arguments and print defaults on error (with this error)
 	err := flagSet.Parse(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -199,25 +225,30 @@ func parseArgs() copyOptions {
 		os.Exit(2)
 	}
 
+	// fill options after parse
 	options.srcFilePath = *srcFilePathPtr
 	options.dstFilePath = *dstFilePathPtr
 	options.chunkSize = *chunkSizePtr
 
+	// required
 	if options.srcFilePath == "" {
 		printDefaults()
 		os.Exit(2)
 	}
 
+	// required
 	if options.dstFilePath == "" {
 		printDefaults()
 		os.Exit(2)
 	}
 
+	// when call from cli need print progress
 	options.withProgress = true
 
 	return options
 }
 
+// parse arguments to copy options and call our copy with progress bar
 func main() {
 	options := parseArgs()
 	err := copyFile(options)
