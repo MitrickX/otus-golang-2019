@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -31,7 +32,7 @@ type envVal struct {
 	remove bool
 }
 
-type envSet map[string]envVal
+type envSet map[string]*envVal
 
 func newEnvSet() envSet {
 	return make(envSet)
@@ -54,7 +55,7 @@ func parseDir(dir string) (envSet, error) {
 		key := fileInfo.Name()
 
 		if fileInfo.Size() == 0 {
-			res[key] = envVal{
+			res[key] = &envVal{
 				remove: true,
 			}
 			continue
@@ -77,7 +78,7 @@ func parseDir(dir string) (envSet, error) {
 		val = strings.TrimRight(val, " \t")
 		val = strings.Replace(val, "\x00", "\n", -1)
 
-		res[key] = envVal{
+		res[key] = &envVal{
 			val: val,
 		}
 	}
@@ -85,30 +86,27 @@ func parseDir(dir string) (envSet, error) {
 	return res, nil
 }
 
-func getEnv() envSet {
-	res := newEnvSet()
-	for _, element := range os.Environ() {
-		variable := strings.Split(element, "=")
-		res[variable[0]] = envVal{
-			val: variable[1],
-		}
-	}
-	return res
-}
-
-func setEnv(newEnv envSet, unsetAll bool) {
-	if unsetAll {
-		for key := range getEnv() {
-			os.Unsetenv(key)
-		}
-	}
+func setEnv(newEnv envSet) {
 	for key, val := range newEnv {
 		if !val.remove {
 			os.Setenv(key, val.val)
-		} else if !unsetAll {
+		} else {
 			os.Unsetenv(key)
 		}
 	}
+}
+
+func getExitCode(runErr error) int {
+	if runErr == nil {
+		return 0
+	}
+
+	exitErr, ok := runErr.(*exec.ExitError)
+	if !ok {
+		return 0
+	}
+
+	return exitErr.ExitCode()
 }
 
 func main() {
@@ -127,10 +125,32 @@ func main() {
 	}
 
 	env, err := parseDir(dir)
+
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error happend while parse dir %s: %s", dir, err)
+		fmt.Fprintf(os.Stderr, "error happend while parse dir %s: %s\n", dir, err)
 		os.Exit(statusCodeFail)
 	}
 
-	fmt.Printf("TODO: call child `%s` command with arguments `%v` and with env `%v`\n", child, childArgs, env)
+	setEnv(env)
+
+	cmd := exec.Command(child, childArgs...)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Start()
+	if err != nil {
+		if len(childArgs) > 0 {
+			fmt.Fprintf(os.Stderr, "error happend while parse run child %s with arguments %s: %s\n", child, childArgs, err)
+		} else {
+			fmt.Fprintf(os.Stderr, "error happend while parse run child %s: %s\n", child, err)
+		}
+		os.Exit(statusCodeFail)
+	}
+
+	runErr := cmd.Wait()
+	exitCode := getExitCode(runErr)
+
+	os.Exit(exitCode)
+
 }

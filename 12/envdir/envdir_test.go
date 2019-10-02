@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -29,16 +30,16 @@ func TestParseDir(t *testing.T) {
 	}
 
 	expected := envSet{
-		"abc": envVal{
+		"abc": &envVal{
 			val: "123",
 		},
-		"def": envVal{
+		"def": &envVal{
 			val: "test",
 		},
-		"xyz": envVal{
+		"xyz": &envVal{
 			val: "h\ni",
 		},
-		"123": envVal{
+		"123": &envVal{
 			remove: true,
 		},
 	}
@@ -48,24 +49,20 @@ func TestParseDir(t *testing.T) {
 	}
 }
 
-func TestGetEnv(t *testing.T) {
-	env := getEnv()
-	if len(env) <= 0 {
-		t.Errorf("Env is almost never is empty\n")
-	}
-}
-
 func TestSetEnv(t *testing.T) {
 	newEnv := envSet{
-		"TEST_METHOD": envVal{
+		"TEST_METHOD": &envVal{
 			val: "TestSetEnv",
 		},
-		"TEST_FILE": envVal{
+		"TEST_FILE": &envVal{
 			val: "envdir_test.go",
+		},
+		"TEST_COURSE": &envVal{
+			val: "golang-2019",
 		},
 	}
 
-	setEnv(newEnv, false)
+	setEnv(newEnv)
 
 	currentEnv := getEnv()
 
@@ -79,6 +76,29 @@ func TestSetEnv(t *testing.T) {
 		}
 	}
 
+	// now try to remove var
+	newEnv["TEST_METHOD"].remove = true
+	newEnv["TEST_FILE"].remove = true
+
+	setEnv(newEnv)
+
+	currentEnv = getEnv()
+
+	for key, val := range newEnv {
+		curVal, ok := currentEnv[key]
+		if val.remove {
+			if ok {
+				t.Errorf("Key %s must be removed in current environment after setEnv with remove flags", key)
+			}
+		} else {
+			if !ok {
+				t.Errorf("Key %s must be in current environment after setEnv", key)
+			}
+			if curVal.val != val.val {
+				t.Errorf("Value on key %s must be equal %s", key, curVal.val)
+			}
+		}
+	}
 }
 
 func createDir(dirnamePrefix string) string {
@@ -100,4 +120,15 @@ func createFile(filename string, content []byte) {
 	if err != nil {
 		log.Fatalf("couldn't write into new created file %s: %s\n", filename, err)
 	}
+}
+
+func getEnv() envSet {
+	res := newEnvSet()
+	for _, element := range os.Environ() {
+		variable := strings.Split(element, "=")
+		res[variable[0]] = &envVal{
+			val: variable[1],
+		}
+	}
+	return res
 }
