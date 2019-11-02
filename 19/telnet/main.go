@@ -16,19 +16,30 @@ import (
 type config struct {
 	network string
 	address string
+	timeout time.Duration
 }
 
 // Parse cli arguments to config
 func parseArgs() config {
 	cfg := config{}
+	var timeout string
+
 	flag.StringVar(&cfg.network, "network", "tcp", "tcp, tcp4, tcp6, default is tcp")
 	flag.StringVar(&cfg.address, "address", "", "string, address in format host:port, required")
+	flag.StringVar(&timeout, "timeout", "10s", "string, timeout for connect to server, default is 10s")
 	flag.Parse()
 
 	if cfg.address == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	// parse string timeout to duration
+	d, err := time.ParseDuration(timeout)
+	if err != nil {
+		d = 10 * time.Second
+	}
+	cfg.timeout = d
 
 	return cfg
 }
@@ -105,8 +116,10 @@ func runCopy(ctx context.Context, reader io.Reader, writer io.Writer, result cha
 func telnet(cfg config, sigCh chan os.Signal) (resultError error) {
 
 	dialer := net.Dialer{
-		KeepAlive: 5 * time.Second,
+		Timeout: cfg.timeout,
 	}
+
+	log.Printf("Connecting to %s...\n", cfg.address)
 	connection, err := dialer.Dial(cfg.network, cfg.address)
 
 	if err != nil {
@@ -115,8 +128,13 @@ func telnet(cfg config, sigCh chan os.Signal) (resultError error) {
 	}
 
 	defer func() {
-		resultError = connection.Close()
+		err := connection.Close()
+		if err != nil {
+			resultError = err
+		}
 	}()
+
+	log.Println("Connected")
 
 	// init our context with cancel
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -133,12 +151,16 @@ func telnet(cfg config, sigCh chan os.Signal) (resultError error) {
 	select {
 	case err := <-readResultCh:
 		cancelFunc()
-		if err != nil {
+		if err == io.EOF {
+			log.Println("Remote address close connection")
+		} else if err != nil {
 			resultError = err
 		}
 	case err := <-writeResultCh:
 		cancelFunc()
-		if err != nil {
+		if err == io.EOF {
+			log.Println("Close connection")
+		} else if err != nil {
 			resultError = err
 		}
 	case <-sigCh:

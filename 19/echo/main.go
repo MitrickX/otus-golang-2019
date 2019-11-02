@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -17,25 +16,24 @@ import (
 // Config for echo server
 type config struct {
 	address string
-	timeout int // in ms
-}
-
-// new line (default is \n, for windows is \r\n)
-var newLine = []byte{'\n'}
-
-// init of package
-func init() {
-	if runtime.GOOS == "windows" {
-		newLine = []byte{'\r', '\n'}
-	}
+	timeout time.Duration
 }
 
 // Parse cli arguments to config
 func parseArgs() config {
 	cfg := config{}
+	var timeout string
 	flag.StringVar(&cfg.address, "address", "127.0.0.1:9000", "string, address, default is 127.0.0.1:8080")
-	flag.IntVar(&cfg.timeout, "timeout", 0, "int, timeout of ticker, default is 0 ms (without ticker)")
+	flag.StringVar(&timeout, "timeout", "0ms", "string, timeout of ticker, default is 0ms (without ticker)")
 	flag.Parse()
+
+	// parse string timeout to duration
+	d, err := time.ParseDuration(timeout)
+	if err != nil {
+		d = 0
+	}
+	cfg.timeout = d
+
 	return cfg
 }
 
@@ -45,9 +43,9 @@ func parseArgs() config {
 // - connection
 // - timeout
 // - error channel of goroutine of worker
-func ticker(ctx context.Context, connection net.Conn, timeout int, result chan<- error) {
+func ticker(ctx context.Context, connection net.Conn, timeout time.Duration, result chan<- error) {
 	go func() {
-		ticker := time.NewTicker(time.Duration(timeout) * time.Millisecond)
+		ticker := time.NewTicker(timeout)
 	LOOP:
 		for {
 			select {
@@ -55,8 +53,8 @@ func ticker(ctx context.Context, connection net.Conn, timeout int, result chan<-
 				result <- nil
 				break LOOP
 			case t := <-ticker.C:
-				message := t.Format("15:04:05.000")
-				_, err := connection.Write(append([]byte(message), newLine...))
+				message := t.Format("15:04:05.000\n")
+				_, err := connection.Write([]byte(message))
 				if err != nil {
 					result <- err
 					break LOOP
@@ -191,7 +189,10 @@ func runListener(cfg config, sigCh chan os.Signal) (resultError error) {
 		cancelFunc() // for cancel connection handlers and accept loop
 
 		// we must close listener here (not in defer), case Accept is blocking
-		resultError = closeListener(ln)
+		err := closeListener(ln)
+		if err != nil {
+			resultError = err
+		}
 	}()
 
 	// on close lis we must wait for all
