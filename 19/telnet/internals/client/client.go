@@ -49,6 +49,7 @@ func (client *Client) connect() error {
 	return nil
 }
 
+// disconnect if was connected
 func (client *Client) disconnect() {
 	if client.conn != nil {
 		err := client.conn.Close()
@@ -73,7 +74,7 @@ func (client *Client) Run() error {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	client.cancel = cancelFunc
 
-	// read from connection to stdout (or any write)
+	// read from connection to stdout (or any Writer)
 	readResultCh := make(chan error)
 	copy.RunCopier(ctx, client.conn, client.cfg.Writer, readResultCh)
 
@@ -83,7 +84,7 @@ func (client *Client) Run() error {
 
 	var resultError error
 
-	// select first error and Stop our ioCopy go-routines (with context cancel function)
+	// select first error and Stop our copy go-routines (with context cancel function)
 	select {
 	case <-ctx.Done():
 		client.disconnect()
