@@ -5,16 +5,20 @@ import (
 	"github.com/mitrickx/otus-golang-2019/21/calendar/internal/calendar"
 )
 
+// Calendar structure for work inside http package
+// Clean architecture approach - not working with inner biz logic layer directly
 type Calendar struct {
-	storage *calendar.Calendar
+	storage *calendar.Calendar // for now it is inner biz entity itself, for future there will be storage interface
 }
 
+// Constructor
 func NewCalendar() *Calendar {
 	return &Calendar{
 		storage: calendar.NewCalendar(),
 	}
 }
 
+// Add Event
 func (thisCalendar *Calendar) AddEvent(event *Event) (int, error) {
 	calendarEvent, err := convertToCalendarEvent(event)
 	if err != nil {
@@ -24,6 +28,7 @@ func (thisCalendar *Calendar) AddEvent(event *Event) (int, error) {
 	return thisCalendar.storage.AddEvent(*calendarEvent), nil
 }
 
+// Update Event
 func (thisCalendar *Calendar) UpdateEvent(id int, event *Event) error {
 	calendarEvent, err := convertToCalendarEvent(event)
 	if err != nil {
@@ -37,6 +42,7 @@ func (thisCalendar *Calendar) UpdateEvent(id int, event *Event) error {
 	return nil
 }
 
+// Delete Event
 func (thisCalendar *Calendar) DeleteEvent(id int) error {
 	err := thisCalendar.storage.DeleteEvent(id)
 	if err != nil {
@@ -45,6 +51,7 @@ func (thisCalendar *Calendar) DeleteEvent(id int) error {
 	return nil
 }
 
+// Get one event
 func (thisCalendar *Calendar) GetEvent(id int) (*Event, bool) {
 	if id <= 0 {
 		return nil, false
@@ -60,6 +67,7 @@ func (thisCalendar *Calendar) GetEvent(id int) (*Event, bool) {
 
 }
 
+// Get all events
 func (thisCalendar *Calendar) GetAllEvents() []*Event {
 	calendarEvents := thisCalendar.storage.GetAllEvents()
 	if len(calendarEvents) == 0 {
@@ -104,10 +112,12 @@ func (thisCalendar *Calendar) GetEventsByPeriod(start string, end string) ([]*Ev
 	return events, nil
 }
 
+// Get total number of events in calendar
 func (thisCalendar *Calendar) getEventsTotalCount() int {
 	return thisCalendar.storage.Count()
 }
 
+// Inner Helper that helps convert http.Event to calendar.Event
 func convertToCalendarEvent(event *Event) (*calendar.Event, error) {
 	calendarEvent, err := event.ConvertToCalendarEvent()
 	if err != nil {

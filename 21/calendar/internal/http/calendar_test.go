@@ -147,47 +147,7 @@ func TestDeleteEvent(t *testing.T) {
 func TestGetEvents(t *testing.T) {
 	calendar := NewCalendar()
 
-	addEvent(t, calendar, &Event{
-		Name:  "Monday",
-		Start: "2019-11-18 08:00",
-		End:   "2019-11-18 10:00",
-	}, 1)
-
-	addEvent(t, calendar, &Event{
-		Name:  "Tuesday",
-		Start: "2019-11-19 08:00",
-		End:   "2019-11-19 10:00",
-	}, 2)
-
-	addEvent(t, calendar, &Event{
-		Name:  "Wednesday",
-		Start: "2019-11-20 08:00",
-		End:   "2019-11-20 10:00",
-	}, 3)
-
-	addEvent(t, calendar, &Event{
-		Name:  "Thursday",
-		Start: "2019-11-21 08:00",
-		End:   "2019-11-21 10:00",
-	}, 4)
-
-	addEvent(t, calendar, &Event{
-		Name:  "Friday",
-		Start: "2019-11-22 08:00",
-		End:   "2019-11-22 10:00",
-	}, 5)
-
-	addEvent(t, calendar, &Event{
-		Name:  "Saturday",
-		Start: "2019-11-23 08:00",
-		End:   "2019-11-23 10:00",
-	}, 6)
-
-	addEvent(t, calendar, &Event{
-		Name:  "Sunday",
-		Start: "2019-11-24 08:00",
-		End:   "2019-11-24 10:00",
-	}, 7)
+	addFixedListOfEvents(t, calendar)
 
 	if calendar.getEventsTotalCount() != 7 {
 		t.Error("7 events must be in calendar")
@@ -276,4 +236,54 @@ func addEvent(t *testing.T, calendar *Calendar, event *Event, expectedCount int)
 	}
 
 	return id
+}
+
+// Helper for tests that tests get event list method
+func addFixedListOfEvents(t *testing.T, calendar *Calendar) {
+	addEvent(t, calendar, &Event{
+		Name:  "Monday",
+		Start: "2019-11-18 08:00",
+		End:   "2019-11-18 10:00",
+	}, 1)
+
+	addEvent(t, calendar, &Event{
+		Name:  "Tuesday",
+		Start: "2019-11-19 08:00",
+		End:   "2019-11-19 10:00",
+	}, 2)
+
+	addEvent(t, calendar, &Event{
+		Name:  "Wednesday",
+		Start: "2019-11-20 08:00",
+		End:   "2019-11-20 10:00",
+	}, 3)
+
+	addEvent(t, calendar, &Event{
+		Name:  "Thursday",
+		Start: "2019-11-21 08:00",
+		End:   "2019-11-21 10:00",
+	}, 4)
+
+	addEvent(t, calendar, &Event{
+		Name:  "Friday",
+		Start: "2019-11-22 08:00",
+		End:   "2019-11-22 10:00",
+	}, 5)
+
+	addEvent(t, calendar, &Event{
+		Name:  "Saturday",
+		Start: "2019-11-23 08:00",
+		End:   "2019-11-23 10:00",
+	}, 6)
+
+	addEvent(t, calendar, &Event{
+		Name:  "Sunday",
+		Start: "2019-11-24 08:00",
+		End:   "2019-11-24 10:00",
+	}, 7)
+
+	if calendar.getEventsTotalCount() != 7 {
+		t.Error("7 events must be in calendar")
+		return
+	}
 }

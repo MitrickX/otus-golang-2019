@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCreateEventOK(t *testing.T) {
@@ -520,5 +521,127 @@ func TestDeleteEventNotFound(t *testing.T) {
 
 	if errResp.Error == "" {
 		t.Errorf("unexpected empty error")
+	}
+}
+
+func TestGetEventsForDay(t *testing.T) {
+	service := NewService("0", nil)
+
+	addFixedListOfEvents(t, &service.Calendar)
+
+	req := httptest.NewRequest("GET", "http://test.com/events_for_day", nil)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	now := time.Date(2019, 11, 21, 8, 0, 0, 0, time.UTC)
+	service.getEventsForDay(now, w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("must be status code 200 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	eventListResp := &EventListResponse{}
+	err := json.Unmarshal(respBody, eventListResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	if len(eventListResp.Result) != 1 {
+		t.Errorf("event list must has one event instead of %d", len(eventListResp.Result))
+	}
+
+	event := *eventListResp.Result[0]
+	if event.Name != "Thursday" {
+		t.Error("Must be Thursday event")
+	}
+}
+
+func TestGetEventsForWeek(t *testing.T) {
+	service := NewService("0", nil)
+
+	addFixedListOfEvents(t, &service.Calendar)
+
+	req := httptest.NewRequest("GET", "http://test.com/events_for_day", nil)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	now := time.Date(2019, 11, 21, 8, 0, 0, 0, time.UTC)
+	service.getEventsForWeek(now, w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("must be status code 200 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	eventListResp := &EventListResponse{}
+	err := json.Unmarshal(respBody, eventListResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	if len(eventListResp.Result) != 7 {
+		t.Errorf("event list must has 7 events instead of %d", len(eventListResp.Result))
+	}
+}
+
+func TestGetEventsForMonth(t *testing.T) {
+	service := NewService("0", nil)
+
+	addFixedListOfEvents(t, &service.Calendar)
+
+	addEvent(t, &service.Calendar, &Event{
+		Name:  "First day",
+		Start: "2019-11-01 08:00",
+		End:   "2019-11-01 10:00",
+	}, 8)
+
+	addEvent(t, &service.Calendar, &Event{
+		Name:  "Last day",
+		Start: "2019-11-30 08:00",
+		End:   "2019-11-30 10:00",
+	}, 9)
+
+	req := httptest.NewRequest("POST", "http://test.com/events_for_day", nil)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	now := time.Date(2019, 11, 21, 8, 0, 0, 0, time.UTC)
+	service.getEventsForMonth(now, w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("must be status code 200 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	eventListResp := &EventListResponse{}
+	err := json.Unmarshal(respBody, eventListResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	if len(eventListResp.Result) != 9 {
+		t.Errorf("event list must has 9 events instead of %d", len(eventListResp.Result))
 	}
 }

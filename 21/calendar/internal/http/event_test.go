@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mitrickx/otus-golang-2019/21/calendar/internal/calendar"
 	"testing"
+	"time"
 )
 
 func TestNewEvent(t *testing.T) {
@@ -119,5 +120,109 @@ func TestJsonMarshal(t *testing.T) {
 		t.Errorf("expect result %s, got result %s\n",
 			fmt.Sprintf("%s", expected),
 			fmt.Sprintf("%s", resultStr))
+	}
+}
+
+func TestGetDayPeriod(t *testing.T) {
+	now := time.Date(2019, 11, 17, 14, 33, 12, 0, time.UTC)
+	start, end := GetDayPeriod(now)
+	expectedStart := "2019-11-17 00:00"
+	expectedEnd := "2019-11-17 23:59"
+	if start != expectedStart {
+		t.Errorf("start must be %s insteadof %s", start, expectedStart)
+	}
+	if end != expectedEnd {
+		t.Errorf("end must be %s insteadof %s", end, expectedEnd)
+	}
+}
+
+func TestGetWeekPeriod1(t *testing.T) {
+	now := time.Date(2019, 11, 17, 14, 33, 12, 0, time.UTC)
+	start, end := GetWeekPeriod(now)
+	expectedStart := "2019-11-11 00:00"
+	expectedEnd := "2019-11-17 23:59"
+	if start != expectedStart {
+		t.Errorf("start must be %s insteadof %s", start, expectedStart)
+	}
+	if end != expectedEnd {
+		t.Errorf("end must be %s insteadof %s", end, expectedEnd)
+	}
+}
+
+func TestGetWeekPeriod2(t *testing.T) {
+	now := time.Date(2019, 11, 13, 14, 33, 12, 0, time.UTC)
+	start, end := GetWeekPeriod(now)
+	expectedStart := "2019-11-11 00:00"
+	expectedEnd := "2019-11-17 23:59"
+	if start != expectedStart {
+		t.Errorf("start must be %s insteadof %s", start, expectedStart)
+	}
+	if end != expectedEnd {
+		t.Errorf("end must be %s insteadof %s", end, expectedEnd)
+	}
+}
+
+func TestGetWeekPeriod3(t *testing.T) {
+	now := time.Date(2019, 11, 11, 14, 33, 12, 0, time.UTC)
+	start, end := GetWeekPeriod(now)
+	expectedStart := "2019-11-11 00:00"
+	expectedEnd := "2019-11-17 23:59"
+	if start != expectedStart {
+		t.Errorf("start must be %s insteadof %s", start, expectedStart)
+	}
+	if end != expectedEnd {
+		t.Errorf("end must be %s insteadof %s", end, expectedEnd)
+	}
+}
+
+func TestGetMonthPeriod1(t *testing.T) {
+	now := time.Date(2019, 11, 11, 14, 33, 12, 0, time.UTC)
+	start, end := GetMonthPeriod(now)
+	expectedStart := "2019-11-01 00:00"
+	expectedEnd := "2019-11-30 23:59"
+	if start != expectedStart {
+		t.Errorf("start must be %s insteadof %s", start, expectedStart)
+	}
+	if end != expectedEnd {
+		t.Errorf("end must be %s insteadof %s", end, expectedEnd)
+	}
+}
+
+func TestGetMonthPeriod2(t *testing.T) {
+	now := time.Date(2019, 12, 11, 14, 33, 12, 0, time.UTC)
+	start, end := GetMonthPeriod(now)
+	expectedStart := "2019-12-01 00:00"
+	expectedEnd := "2019-12-31 23:59"
+	if start != expectedStart {
+		t.Errorf("start must be %s insteadof %s", start, expectedStart)
+	}
+	if end != expectedEnd {
+		t.Errorf("end must be %s insteadof %s", end, expectedEnd)
+	}
+}
+
+func TestGetMonthPeriod3(t *testing.T) {
+	now := time.Date(2020, 2, 11, 14, 33, 12, 0, time.UTC)
+	start, end := GetMonthPeriod(now)
+	expectedStart := "2020-02-01 00:00"
+	expectedEnd := "2020-02-29 23:59"
+	if start != expectedStart {
+		t.Errorf("start must be %s insteadof %s", start, expectedStart)
+	}
+	if end != expectedEnd {
+		t.Errorf("end must be %s insteadof %s", end, expectedEnd)
+	}
+}
+
+func TestGetMonthPeriod4(t *testing.T) {
+	now := time.Date(2019, 2, 11, 14, 33, 12, 0, time.UTC)
+	start, end := GetMonthPeriod(now)
+	expectedStart := "2019-02-01 00:00"
+	expectedEnd := "2019-02-28 23:59"
+	if start != expectedStart {
+		t.Errorf("start must be %s insteadof %s", start, expectedStart)
+	}
+	if end != expectedEnd {
+		t.Errorf("end must be %s insteadof %s", end, expectedEnd)
 	}
 }

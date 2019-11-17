@@ -10,24 +10,30 @@ import (
 	"time"
 )
 
+// Ok json response
 type OkResponse struct {
 	Result string `json:"result"`
 }
 
+// Ok json response with list of events
 type EventListResponse struct {
 	Result []*Event `json:"result"`
 }
 
+// Error json response
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// Http calendar service itself
+// Clean architecture approach - not working with inner biz logic layer directly
 type Service struct {
 	Calendar
 	logger *zap.SugaredLogger
 	port   string
 }
 
+// Constructor
 func NewService(port string, logger *zap.SugaredLogger) *Service {
 	service := NewCalendar()
 	return &Service{
@@ -37,6 +43,7 @@ func NewService(port string, logger *zap.SugaredLogger) *Service {
 	}
 }
 
+// Middleware to log requests
 func (service *Service) requestLogMiddleware(next http.Handler) http.Handler {
 	// if not logger - no middleware
 	if service.logger == nil {
@@ -48,12 +55,16 @@ func (service *Service) requestLogMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Run http calendar service
 func (service *Service) Run() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/create_event", service.CreatEvent).Methods("POST")
 	router.HandleFunc("/update_event", service.UpdateEvent).Methods("POST")
 	router.HandleFunc("/delete_event", service.DeleteEvent).Methods("POST")
+	router.HandleFunc("/events_for_day", service.GetEventsForDay).Methods("GET")
+	router.HandleFunc("/events_for_week", service.GetEventsForWeek).Methods("GET")
+	router.HandleFunc("/events_for_month", service.GetEventsForMonth).Methods("GET")
 
 	handler := service.requestLogMiddleware(router)
 
@@ -67,10 +78,13 @@ func (service *Service) Run() {
 	}
 }
 
+// Run new http calendar service
 func RunService(port string, logger *zap.SugaredLogger) {
 	NewService(port, logger).Run()
 }
 
+// Create event handler
+// On success response by ok json response with "create %d" result string
 func (service *Service) CreatEvent(w http.ResponseWriter, r *http.Request) {
 	service.parseForm(r)
 
@@ -89,6 +103,8 @@ func (service *Service) CreatEvent(w http.ResponseWriter, r *http.Request) {
 	service.writeOkResponse(w, fmt.Sprintf("created %d", id), 200)
 }
 
+// Update event handler
+// On success response by ok json response with "updated" result string
 func (service *Service) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	service.parseForm(r)
 
@@ -113,6 +129,8 @@ func (service *Service) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	service.writeOkResponse(w, "updated", 200)
 }
 
+// Delete event handler
+// On success response by ok json response with "deleted" result string
 func (service *Service) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	service.parseForm(r)
 
@@ -131,37 +149,45 @@ func (service *Service) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	service.writeOkResponse(w, "deleted", 200)
 }
 
+// Get events for current day handler
+// response by ok json response with list of events
 func (service *Service) GetEventsForDay(w http.ResponseWriter, r *http.Request) {
-	service.parseForm(r)
-
-	now := time.Now()
-	startTime := now.Format(dateLayout) + " 00:00"
-	endTime := now.Format(dateLayout) + " 23:59"
-	events, err := service.Calendar.GetEventsByPeriod(startTime, endTime)
-
-	if err != nil {
-		service.writeErrorResponse(w, "internal server error", 500)
-		if service.logger != nil {
-			service.logger.Errorf("Service.GetEventsForDay, error Calendar.GetEventsByPeriod %s", err)
-		}
-	}
-
-	service.writeEventListResponse(w, events, 200)
+	service.getEventsForDay(time.Now(), w, r)
 }
 
+// Inner method for testing, in test we want pass own 'now'
+func (service *Service) getEventsForDay(now time.Time, w http.ResponseWriter, r *http.Request) {
+	startTime, endTime := GetDayPeriod(now)
+	service.getEventsForPeriod(startTime, endTime, w, r)
+}
+
+// Get events for current week handler
+// response by ok json response with list of events
 func (service *Service) GetEventsForWeek(w http.ResponseWriter, r *http.Request) {
-	service.parseForm(r)
+	service.getEventsForWeek(time.Now(), w, r)
+}
 
-	now := time.Now()
-	nowWeek := now.Weekday()
-	nowWeekInt := int(nowWeek)
-	if nowWeekInt == 0 {
-		nowWeekInt = 7
-	}
-	//-int()
-	startTime := now.Format(dateLayout) + " 00:00"
-	endTime := now.Format(dateLayout) + " 23:59"
-	events, err := service.Calendar.GetEventsByPeriod(startTime, endTime)
+// Inner method for testing, in test we want pass own 'now'
+func (service *Service) getEventsForWeek(now time.Time, w http.ResponseWriter, r *http.Request) {
+	startTime, endTime := GetWeekPeriod(now)
+	service.getEventsForPeriod(startTime, endTime, w, r)
+}
+
+// Get events for current month handler
+// response by ok json response with list of events
+func (service *Service) GetEventsForMonth(w http.ResponseWriter, r *http.Request) {
+	service.getEventsForMonth(time.Now(), w, r)
+}
+
+// Inner method for testing, in test we want pass own 'now'
+func (service *Service) getEventsForMonth(now time.Time, w http.ResponseWriter, r *http.Request) {
+	startTime, endTime := GetMonthPeriod(now)
+	service.getEventsForPeriod(startTime, endTime, w, r)
+}
+
+// Helper for GetEventsFor* methods to reduce code duplication
+func (service *Service) getEventsForPeriod(start, end string, w http.ResponseWriter, r *http.Request) {
+	events, err := service.Calendar.GetEventsByPeriod(start, end)
 
 	if err != nil {
 		service.writeErrorResponse(w, "internal server error", 500)
@@ -173,6 +199,7 @@ func (service *Service) GetEventsForWeek(w http.ResponseWriter, r *http.Request)
 	service.writeEventListResponse(w, events, 200)
 }
 
+// inner helper for parse form
 func (service *Service) parseForm(r *http.Request) {
 	err := r.ParseForm()
 	if err != nil && service.logger != nil {
@@ -180,6 +207,7 @@ func (service *Service) parseForm(r *http.Request) {
 	}
 }
 
+// inner helper for write ok json response
 func (service *Service) writeOkResponse(w http.ResponseWriter, result string, code int) {
 	response := &OkResponse{result}
 	data, err := json.Marshal(response)
@@ -205,6 +233,7 @@ func (service *Service) writeOkResponse(w http.ResponseWriter, result string, co
 	w.Header().Set("Content-Type", "application/json")
 }
 
+// inner helper for write error json response
 func (service *Service) writeErrorResponse(w http.ResponseWriter, result string, code int) {
 	response := &ErrorResponse{result}
 	data, err := json.Marshal(response)
@@ -228,6 +257,7 @@ func (service *Service) writeErrorResponse(w http.ResponseWriter, result string,
 	}
 }
 
+// inner helper for write ok json response with list of events
 func (service *Service) writeEventListResponse(w http.ResponseWriter, evens []*Event, code int) {
 	response := &EventListResponse{evens}
 	data, err := json.Marshal(response)
