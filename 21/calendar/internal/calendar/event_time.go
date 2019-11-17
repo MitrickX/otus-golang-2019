@@ -6,7 +6,7 @@ import (
 
 var location = time.UTC
 
-func init () {
+func init() {
 	// TODO: move to config
 	l, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
@@ -37,6 +37,11 @@ func ConvertFromTime(t time.Time) EventTime {
 // Less method for compare 2 event times, will need for sorting
 func (eventTime EventTime) Less(thatEventTime EventTime) bool {
 	return eventTime.t.Unix() < thatEventTime.t.Unix()
+}
+
+// Less or equal for compare 2 event times, will need for query list of events from calendar by period
+func (eventTime EventTime) LessOrEqual(thatEventTime EventTime) bool {
+	return eventTime.t.Unix() <= thatEventTime.t.Unix()
 }
 
 // String representation of event time

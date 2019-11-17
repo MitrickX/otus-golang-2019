@@ -119,6 +119,39 @@ func (calendar *Calendar) GetAllEvents() []Event {
 	return events
 }
 
+// Get all events that started in period (boundary of period are included) sorted by Less method of events
+// You also can pass nil for start or end times
+// nil has special means - no boundary for range period
+func (calendar *Calendar) GetEventsByPeriod(startTime *EventTime, endTime *EventTime) []Event {
+	calendar.mx.RLock()
+	eventsMap := calendar.events
+	calendar.mx.RUnlock()
+
+	if len(eventsMap) <= 0 {
+		return nil
+	}
+
+	var events []Event
+	for _, event := range eventsMap {
+		inPeriod := true
+		if startTime != nil && !startTime.LessOrEqual(event.Start()) {
+			inPeriod = false
+		}
+		if endTime != nil && !event.Start().LessOrEqual(*endTime) {
+			inPeriod = false
+		}
+		if inPeriod {
+			events = append(events, event)
+		}
+	}
+
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Less(events[j])
+	})
+
+	return events
+}
+
 // Total number of events now in calendar
 func (calendar *Calendar) Count() int {
 	calendar.mx.RLock()

@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -150,5 +151,111 @@ func TestDeleteEvent(t *testing.T) {
 
 	if calendar.Count() != 0 {
 		t.Error("delete actually not happened, after 2 delete calender must be empty")
+	}
+}
+
+func TestGetEvents(t *testing.T) {
+	calendar := NewCalendar()
+
+	calendar.AddEvent(NewEvent("Monday",
+		NewEventTime(2019, 11, 18, 8, 0),
+		NewEventTime(2019, 11, 18, 10, 0),
+	))
+
+	calendar.AddEvent(NewEvent("Tuesday",
+		NewEventTime(2019, 11, 19, 8, 0),
+		NewEventTime(2019, 11, 19, 10, 0),
+	))
+
+	calendar.AddEvent(NewEvent("Wednesday",
+		NewEventTime(2019, 11, 20, 8, 0),
+		NewEventTime(2019, 11, 20, 10, 0),
+	))
+
+	calendar.AddEvent(NewEvent("Thursday",
+		NewEventTime(2019, 11, 21, 8, 0),
+		NewEventTime(2019, 11, 21, 10, 0),
+	))
+
+	calendar.AddEvent(NewEvent("Friday",
+		NewEventTime(2019, 11, 22, 8, 0),
+		NewEventTime(2019, 11, 22, 10, 0),
+	))
+
+	calendar.AddEvent(NewEvent("Saturday",
+		NewEventTime(2019, 11, 23, 8, 0),
+		NewEventTime(2019, 11, 23, 10, 0),
+	))
+
+	calendar.AddEvent(NewEvent("Sunday",
+		NewEventTime(2019, 11, 24, 8, 0),
+		NewEventTime(2019, 11, 24, 10, 0),
+	))
+
+	if calendar.Count() != 7 {
+		t.Error("7 events must be in calendar")
+		return
+	}
+
+	allEvents := calendar.GetAllEvents()
+	if len(allEvents) != 7 {
+		t.Error("7 events must be in calendar and GetAllEvents must return all of them")
+	}
+
+	allEvents2 := calendar.GetEventsByPeriod(nil, nil)
+	if len(allEvents2) != 7 {
+		t.Error("7 events must be in calendar and GetEventsByPeriod(nil, nil) must return all of them")
+	}
+
+	if !reflect.DeepEqual(allEvents, allEvents2) {
+		t.Errorf("Sorting of allEvents slices must be the same")
+	}
+
+	eventTime := NewEventTime(2019, 11, 18, 8, 0)
+	eventList := calendar.GetEventsByPeriod(nil, &eventTime)
+
+	if len(eventList) != 1 {
+		t.Errorf("Must be returned one event")
+	}
+
+	if eventList[0].Name() != "Monday" {
+		t.Errorf("Must be returned one event `Monday`")
+	}
+
+	eventTime = NewEventTime(2019, 11, 24, 8, 0)
+	eventList = calendar.GetEventsByPeriod(&eventTime, nil)
+
+	if len(eventList) != 1 {
+		t.Errorf("Must be returned one event")
+	}
+
+	if eventList[0].Name() != "Sunday" {
+		t.Errorf("Must be returned one event `Sunday`")
+	}
+
+	startEventTime := NewEventTime(2019, 11, 20, 8, 0)
+	endEventTime := NewEventTime(2019, 11, 22, 8, 0)
+	eventList = calendar.GetEventsByPeriod(&startEventTime, &endEventTime)
+
+	if len(eventList) != 3 {
+		t.Errorf("Must be returned 3 events")
+	}
+
+	if eventList[0].Name() != "Wednesday" {
+		t.Errorf("First event must be `Wednesday`")
+	}
+	if eventList[1].Name() != "Thursday" {
+		t.Errorf("First event must be `Thursday`")
+	}
+	if eventList[2].Name() != "Friday" {
+		t.Errorf("First event must be `Friday`")
+	}
+
+	startEventTime = NewEventTime(2019, 11, 20, 8, 1)
+	endEventTime = NewEventTime(2019, 11, 20, 9, 59)
+	eventList = calendar.GetEventsByPeriod(&startEventTime, &endEventTime)
+
+	if len(eventList) != 0 {
+		t.Errorf("Must be returned 0 events")
 	}
 }

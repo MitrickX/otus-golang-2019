@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/mitrickx/otus-golang-2019/21/calendar/internals/logger"
+	"github.com/mitrickx/otus-golang-2019/21/calendar/internal/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"

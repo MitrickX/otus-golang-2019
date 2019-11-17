@@ -6,6 +6,30 @@ import (
 	"testing"
 )
 
+func TestNewEvent(t *testing.T) {
+	_, err := NewEvent("Do homework", "2019-10-15 20:00", "2019-10-15 22:00")
+	if err != nil {
+		t.Errorf("http.Event construction must be ok, not failed because of `%s`", err)
+	}
+
+	_, err = NewEvent("Do homework", "17897897", "2019-10-15 22:00")
+
+	if err == nil {
+		t.Error("http.Event construction must return ErrorInvalidDatetime, not nil")
+	} else if _, ok := err.(*ErrorInvalidDatetime); !ok {
+		t.Errorf("http.Event construction must return ErrorInvalidDatetime, not `%+v`", err)
+	}
+
+	_, err = NewEvent("Do homework", "2019-10-15 20:00", "02 Jan 06 15:04 MST")
+
+	if err == nil {
+		t.Error("http.Event construction must return ErrorInvalidDatetime, not nil")
+	} else if _, ok := err.(*ErrorInvalidDatetime); !ok {
+		t.Errorf("http.Event construction must return ErrorInvalidDatetime, not `%+v`", err)
+	}
+
+}
+
 func TestConvertFromCalendarEvent(t *testing.T) {
 	calendarEvent := calendar.NewEvent("Do homework",
 		calendar.NewEventTime(2019, 10, 15, 20, 0),
@@ -50,7 +74,7 @@ func TestConvertToCalendarEvent(t *testing.T) {
 	}
 }
 
-func TestJsonUnmarshal(t *testing.T)  {
+func TestJsonUnmarshal(t *testing.T) {
 	jsonData := `{
 		"name": "Do homework",
 		"start": "2019-11-15 20:00",
@@ -63,9 +87,9 @@ func TestJsonUnmarshal(t *testing.T)  {
 	}
 
 	expectedEvent := Event{
-		Name: "Do homework",
+		Name:  "Do homework",
 		Start: "2019-11-15 20:00",
-		End: "2019-11-15 22:00",
+		End:   "2019-11-15 22:00",
 	}
 
 	if expectedEvent != *event {
@@ -77,9 +101,9 @@ func TestJsonUnmarshal(t *testing.T)  {
 
 func TestJsonMarshal(t *testing.T) {
 	event := &Event{
-		Name: "Do homework",
+		Name:  "Do homework",
 		Start: "2019-11-17 23:00",
-		End: "2019-11-18 08:00",
+		End:   "2019-11-18 08:00",
 	}
 
 	result, err := event.JsonMarshall()

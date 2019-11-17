@@ -1,70 +1,167 @@
 package http
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"net/http/httptest"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 )
 
-func TestNewCalendarService(t *testing.T) {
-	service := NewCalendarService()
-	if service.storage == nil {
-		t.Error("Storage must not be nil")
-	}
-}
+func TestCreateEventOK(t *testing.T) {
+	service := NewService("0", nil)
 
-func TestAddEvent(t *testing.T) {
-	service := NewCalendarService()
+	data := url.Values{}
+	data.Set("name", "Do homework")
+	data.Set("start", "2019-10-15 20:00")
+	data.Set("end", "2019-10-15 22:00")
+	body := strings.NewReader(data.Encode())
 
-	if service.getEventsTotalCount() > 0 {
-		t.Error("new calendar service must not has events")
-	}
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	event1 := &Event{
-		Name:  "Do homework",
-		Start: "2019-10-15 20:00",
-		End:   "2019-10-15 22:00",
-	}
+	w := httptest.NewRecorder()
 
-	id := addEvent(t, service, event1, 1)
-	if id <= 0 {
-		return
+	service.CreatEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("must be status code 200 not %d", resp.StatusCode)
 	}
 
-	event2 := &Event{
-		Name:  "Watch movie",
-		Start: "2019-10-15 22:00",
-		End:   "2019-10-16 01:00",
-	}
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
-	id = addEvent(t, service, event2, 2)
-	if id <= 0 {
-		return
-	}
-}
-
-func TestUpdateEvent(t *testing.T) {
-	service := NewCalendarService()
-
-	event1 := &Event{
-		Name:  "Do homework",
-		Start: "2019-10-15 20:00",
-		End:   "2019-10-15 22:00",
-	}
-
-	id := addEvent(t, service, event1, 1)
-	if id <= 0 {
-		return
-	}
-
-	event2 := &Event{
-		Name:  "Watch movie",
-		Start: "2019-10-15 22:00",
-		End:   "2019-10-16 01:00",
-	}
-
-	err := service.UpdateEvent(id, event2)
-
+	okResp := &OkResponse{}
+	err := json.Unmarshal(respBody, okResp)
 	if err != nil {
-		t.Errorf("must not be happened error on update: %s\n", err)
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	re := regexp.MustCompile(`created (\d+)`)
+	match := re.FindStringSubmatch(okResp.Result)
+	if match == nil {
+		t.Errorf("unexpected OkResponse.Result value `%s`", okResp.Result)
+		return
+	}
+
+	id, err := strconv.Atoi(match[1])
+	if err != nil {
+		t.Fatalf("strconv return error %s", err)
+	}
+
+	if id <= 0 {
+		t.Errorf("unexpected event id %d, must be > 0", id)
+	}
+
+	if service.Calendar.getEventsTotalCount() != 1 {
+		t.Errorf("unexpected count of events in calendar, must be 1 instead of %d", service.Calendar.getEventsTotalCount())
+	}
+
+}
+
+func TestCreateEventInvalidDate(t *testing.T) {
+	service := NewService("0", nil)
+
+	data := url.Values{}
+	data.Set("name", "Do homework")
+	data.Set("start", "sdfasdf")
+	data.Set("end", "2019-10-15 22:00")
+	body := strings.NewReader(data.Encode())
+
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	service.CreatEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 400 {
+		t.Errorf("must be status code 400 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	errResp := &ErrorResponse{}
+	err := json.Unmarshal(respBody, errResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	if errResp.Error != DefaultErrorInvalidDatetime.Error() {
+		t.Errorf("unexpected error `%s` instread of `%s`", errResp.Error, DefaultErrorInvalidDatetime.Error())
+	}
+
+	if service.Calendar.getEventsTotalCount() != 0 {
+		t.Errorf("unexpected count of events in calendar, must be 0 instead of %d", service.Calendar.getEventsTotalCount())
+	}
+
+}
+
+func TestUpdateEventOK(t *testing.T) {
+	service := NewService("0", nil)
+
+	event1 := &Event{
+		Name:  "Do homework",
+		Start: "2019-10-15 20:00",
+		End:   "2019-10-15 22:00",
+	}
+
+	id := addEvent(t, &service.Calendar, event1, 1)
+	if id <= 0 {
+		return
+	}
+
+	event2 := &Event{
+		Name:  "Watch movie",
+		Start: "2019-10-15 22:00",
+		End:   "2019-10-16 01:00",
+	}
+
+	data := url.Values{}
+	data.Set("id", strconv.Itoa(id))
+	data.Set("name", event2.Name)
+	data.Set("start", event2.Start)
+	data.Set("end", event2.End)
+	body := strings.NewReader(data.Encode())
+
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	service.UpdateEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("must be status code 200 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	okResp := &OkResponse{}
+	err := json.Unmarshal(respBody, okResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	if okResp.Result != "updated" {
+		t.Errorf("unexpected OkResponse.Result value `%s`", okResp.Result)
 		return
 	}
 
@@ -78,19 +175,10 @@ func TestUpdateEvent(t *testing.T) {
 		t.Errorf("\nevent info not updated\nexpected be:\n%+v\ngot:\n%+v\n", event2, event)
 	}
 
-	err = service.UpdateEvent(0, &Event{})
-	if err == nil {
-		t.Error("update by id = 0 must return error")
-	}
-
-	err = service.UpdateEvent(1000, &Event{})
-	if err == nil {
-		t.Error("update by id of not existed event must return error")
-	}
 }
 
-func TestDeleteEvent(t *testing.T) {
-	service := NewCalendarService()
+func TestUpdateEventInvalidId(t *testing.T) {
+	service := NewService("0", nil)
 
 	event1 := &Event{
 		Name:  "Do homework",
@@ -98,8 +186,8 @@ func TestDeleteEvent(t *testing.T) {
 		End:   "2019-10-15 22:00",
 	}
 
-	id1 := addEvent(t, service, event1, 1)
-	if id1 <= 0 {
+	id := addEvent(t, &service.Calendar, event1, 1)
+	if id <= 0 {
 		return
 	}
 
@@ -109,57 +197,328 @@ func TestDeleteEvent(t *testing.T) {
 		End:   "2019-10-16 01:00",
 	}
 
-	id2 := addEvent(t, service, event2, 2)
-	if id2 <= 0 {
+	data := url.Values{}
+	data.Set("id", "sdfsdf")
+	data.Set("name", event2.Name)
+	data.Set("start", event2.Start)
+	data.Set("end", event2.End)
+	body := strings.NewReader(data.Encode())
+
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	service.UpdateEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 400 {
+		t.Errorf("must be status code 400 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	errResp := &ErrorResponse{}
+	err := json.Unmarshal(respBody, errResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	expectedErr := "invalid id parameter, must be int greater than 0"
+	if errResp.Error != expectedErr {
+		t.Errorf("unexpected error %s, must be %s", errResp.Error, expectedErr)
+	}
+
+	event, found := service.GetEvent(id)
+	if !found {
+		t.Errorf("event with id = %d not found on calendar service", id)
 		return
 	}
 
-	err := service.DeleteEvent(0)
-	if err == nil {
-		t.Error("delete by id = 0 must return error")
+	if event.Name != event1.Name || event.Start != event1.Start || event.End != event1.End {
+		t.Errorf("\nevent info must be not updated\nexpected be:\n%+v\ngot:\n%+v\n", event1, event)
 	}
 
-	err = service.DeleteEvent(1000)
-	if err == nil {
-		t.Error("delete by id of not existed event must return error")
+}
+
+func TestUpdateEventInvalidDate(t *testing.T) {
+	service := NewService("0", nil)
+
+	event1 := &Event{
+		Name:  "Do homework",
+		Start: "2019-10-15 20:00",
+		End:   "2019-10-15 22:00",
 	}
 
-	err = service.DeleteEvent(id1)
+	id := addEvent(t, &service.Calendar, event1, 1)
+	if id <= 0 {
+		return
+	}
+
+	event2 := &Event{
+		Name:  "Watch movie",
+		Start: "2019-10-15 22:00",
+		End:   "2019-10-16 01:00",
+	}
+
+	data := url.Values{}
+	data.Set("id", strconv.Itoa(id))
+	data.Set("name", event2.Name)
+	data.Set("start", "dafsdaf")
+	data.Set("end", event2.End)
+	body := strings.NewReader(data.Encode())
+
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	service.UpdateEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 400 {
+		t.Errorf("must be status code 400 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	errResp := &ErrorResponse{}
+	err := json.Unmarshal(respBody, errResp)
 	if err != nil {
-		t.Errorf("delete by id = %d must not return error: %s", id1, err)
+		t.Errorf("failed on unmarshal json %s", err)
 	}
 
-	if service.getEventsTotalCount() != 1 {
-		t.Error("delete actually not happened")
+	if errResp.Error != DefaultErrorInvalidDatetime.Error() {
+		t.Errorf("unexpected error `%s` instread of `%s`", errResp.Error, DefaultErrorInvalidDatetime.Error())
 	}
 
-	err = service.DeleteEvent(id2)
+	event, found := service.GetEvent(id)
+	if !found {
+		t.Errorf("event with id = %d not found on calendar service", id)
+		return
+	}
+
+	if event.Name != event1.Name || event.Start != event1.Start || event.End != event1.End {
+		t.Errorf("\nevent info must be not updated\nexpected be:\n%+v\ngot:\n%+v\n", event1, event)
+	}
+
+}
+
+func TestUpdateEventNotFound(t *testing.T) {
+	service := NewService("0", nil)
+
+	event1 := &Event{
+		Name:  "Do homework",
+		Start: "2019-10-15 20:00",
+		End:   "2019-10-15 22:00",
+	}
+
+	id := addEvent(t, &service.Calendar, event1, 1)
+	if id <= 0 {
+		return
+	}
+
+	event2 := &Event{
+		Name:  "Watch movie",
+		Start: "2019-10-15 22:00",
+		End:   "2019-10-16 01:00",
+	}
+
+	data := url.Values{}
+	data.Set("id", "100")
+	data.Set("name", event2.Name)
+	data.Set("start", event2.Start)
+	data.Set("end", event2.End)
+	body := strings.NewReader(data.Encode())
+
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	service.UpdateEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("must be status code 200 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	errResp := &ErrorResponse{}
+	err := json.Unmarshal(respBody, errResp)
 	if err != nil {
-		t.Errorf("delete by id = %d must not return error: %s", id2, err)
+		t.Errorf("failed on unmarshal json %s", err)
 	}
 
-	if service.getEventsTotalCount() != 0 {
-		t.Error("delete actually not happened, after 2 delete calender must be empty")
+	if errResp.Error == "" {
+		t.Errorf("unexpected empty error")
+	}
+
+}
+
+func TestDeleteEventOK(t *testing.T) {
+	service := NewService("0", nil)
+
+	event := &Event{
+		Name:  "Do homework",
+		Start: "2019-10-15 20:00",
+		End:   "2019-10-15 22:00",
+	}
+
+	id := addEvent(t, &service.Calendar, event, 1)
+	if id <= 0 {
+		return
+	}
+
+	data := url.Values{}
+	data.Set("id", strconv.Itoa(id))
+	body := strings.NewReader(data.Encode())
+
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	service.DeleteEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("must be status code 200 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	okResp := &OkResponse{}
+	err := json.Unmarshal(respBody, okResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	if okResp.Result != "deleted" {
+		t.Errorf("unexpected OkResponse.Result value `%s`", okResp.Result)
+		return
+	}
+
+	event, found := service.GetEvent(id)
+	if found {
+		t.Errorf("event with id = %d have not be deleted on calendar service", id)
+		return
+	}
+
+	if service.Calendar.getEventsTotalCount() != 0 {
+		t.Errorf("unexpected count of events in calendar, must be 0 instead of %d", service.Calendar.getEventsTotalCount())
+	}
+
+}
+
+func TestDeleteEventInvalidId(t *testing.T) {
+	service := NewService("0", nil)
+
+	event := &Event{
+		Name:  "Do homework",
+		Start: "2019-10-15 20:00",
+		End:   "2019-10-15 22:00",
+	}
+
+	id := addEvent(t, &service.Calendar, event, 1)
+	if id <= 0 {
+		return
+	}
+
+	data := url.Values{}
+	data.Set("id", "sdsdf")
+	body := strings.NewReader(data.Encode())
+
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	service.DeleteEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 400 {
+		t.Errorf("must be status code 400 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	errResp := &ErrorResponse{}
+	err := json.Unmarshal(respBody, errResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	expectedErr := "invalid id parameter, must be int greater than 0"
+	if errResp.Error != expectedErr {
+		t.Errorf("unexpected error %s, must be %s", errResp.Error, expectedErr)
 	}
 }
 
-// Helper to add Event and run through list of assets
-// Need for reduce code duplication in these tests
-// If expectedCount input argument is greater and equal 0 check getEventsTotalCount of service
-// If adding is successful return int ID > 0, otherwise return int < 0
-func addEvent(t *testing.T, service *CalendarService, event *Event, expectedCount int) int {
-	id, err := service.AddEvent(event)
+func TestDeleteEventNotFound(t *testing.T) {
+	service := NewService("0", nil)
 
-	if err != nil {
-		t.Errorf("must not be error if add new event: %s", err)
-		return -1
-	} else if id <= 0 {
-		t.Errorf("id %d of new added event must be > 0", id)
-		return -2
-	} else if expectedCount >= 0 && service.getEventsTotalCount() != expectedCount {
-		t.Errorf("calendar service must has %d events instead of %d\n", expectedCount, service.getEventsTotalCount())
-		return -3
+	event := &Event{
+		Name:  "Do homework",
+		Start: "2019-10-15 20:00",
+		End:   "2019-10-15 22:00",
 	}
 
-	return id
+	id := addEvent(t, &service.Calendar, event, 1)
+	if id <= 0 {
+		return
+	}
+
+	data := url.Values{}
+	data.Set("id", "100")
+	body := strings.NewReader(data.Encode())
+
+	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+
+	service.DeleteEvent(w, req)
+
+	resp := w.Result()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("must be status code 200 not %d", resp.StatusCode)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	errResp := &ErrorResponse{}
+	err := json.Unmarshal(respBody, errResp)
+	if err != nil {
+		t.Errorf("failed on unmarshal json %s", err)
+	}
+
+	if errResp.Error == "" {
+		t.Errorf("unexpected empty error")
+	}
 }

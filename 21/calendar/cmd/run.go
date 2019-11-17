@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"github.com/mitrickx/otus-golang-2019/21/calendar/internals/logger"
+	httpService "github.com/mitrickx/otus-golang-2019/21/calendar/internal/http"
+	"github.com/mitrickx/otus-golang-2019/21/calendar/internal/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"net/http"
 )
 
 // runCmd represents the run command
@@ -30,15 +30,6 @@ func runHttpService() {
 		port = "8080"
 	}
 
-	// main service handler
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		logger.GetLogger().Info("Request processed")
-	})
-
-	// try run service and failed log fatal
-	logger.GetLogger().Info("Run server on port: ", port)
-	err := http.ListenAndServe(":"+port, nil)
-	if err != nil {
-		logger.GetLogger().Fatal("Run server error: ", err)
-	}
+	serviceLogger := logger.GetLogger()
+	httpService.RunService(port, serviceLogger)
 }
