@@ -1,3 +1,4 @@
+Simple calendar with http interface <br>
 In project used cobra (with viper) and zap <br>
 
 **Usage:** <br>
