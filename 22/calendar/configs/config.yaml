@@ -1,0 +1,5 @@
+ports:
+    http: 8080
+    grps: 50051
+logger:
+  level: "debug"
