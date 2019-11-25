@@ -1,0 +1,11 @@
+ports:
+  http: 8080
+  grps: 50051
+db:
+  host: "localhost"
+  port: 5432
+  dbname: "calendar"
+  user: "postgres"
+  password: "1234"
+logger:
+  level: "debug"
