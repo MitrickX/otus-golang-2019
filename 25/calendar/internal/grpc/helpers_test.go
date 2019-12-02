@@ -61,8 +61,8 @@ func TestConvertFromCalendarEvent(t *testing.T) {
 	calendarEvent := entities.NewEventWithId(
 		100,
 		"Test",
-		entities.NewEventTime(2019, 11, 19, 0, 12),
-		entities.NewEventTime(2019, 11, 19, 0, 50),
+		entities.NewDateTime(2019, 11, 19, 0, 12),
+		entities.NewDateTime(2019, 11, 19, 0, 50),
 	)
 	event, err := convertFromCalendarEvent(calendarEvent)
 	if err != nil {

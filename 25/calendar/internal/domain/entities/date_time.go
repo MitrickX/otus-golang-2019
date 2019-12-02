@@ -17,45 +17,45 @@ func init() {
 }*/
 
 // Time of event - wrapper on time.Time but more simple constructor
-type EventTime struct {
+type DateTime struct {
 	t time.Time
 }
 
 // Constructor
-func NewEventTime(year, month, day, hour, minute int) EventTime {
-	return EventTime{
+func NewDateTime(year, month, day, hour, minute int) DateTime {
+	return DateTime{
 		time.Date(year, time.Month(month), day, hour, minute, 0, 0, location),
 	}
 }
 
 // Construct from time.Time
-func ConvertFromTime(t time.Time) EventTime {
-	return EventTime{
+func ConvertFromTime(t time.Time) DateTime {
+	return DateTime{
 		time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, location),
 	}
 }
 
 // Less method for compare 2 event times, will need for sorting
-func (eventTime EventTime) Less(thatEventTime EventTime) bool {
+func (eventTime DateTime) Less(thatEventTime DateTime) bool {
 	return eventTime.t.Unix() < thatEventTime.t.Unix()
 }
 
 // Less or equal for compare 2 event times, will need for query list of events from entities by period
-func (eventTime EventTime) LessOrEqual(thatEventTime EventTime) bool {
+func (eventTime DateTime) LessOrEqual(thatEventTime DateTime) bool {
 	return eventTime.t.Unix() <= thatEventTime.t.Unix()
 }
 
 // String representation of event time
-func (eventTime EventTime) String() string {
+func (eventTime DateTime) String() string {
 	return eventTime.t.Format("02 Jan 2006 15:04")
 }
 
 // Formatting
-func (eventTime EventTime) Format(layout string) string {
+func (eventTime DateTime) Format(layout string) string {
 	return eventTime.t.Format(layout)
 }
 
 // get time.Time
-func (eventTime EventTime) Time() time.Time {
+func (eventTime DateTime) Time() time.Time {
 	return eventTime.t
 }

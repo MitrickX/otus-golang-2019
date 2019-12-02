@@ -1,6 +1,8 @@
 package entities
 
-import "errors"
+import (
+	"errors"
+)
 
 var StorageErrorEventNotFound = errors.New("event not found in storage")
 
@@ -10,7 +12,8 @@ type Storage interface {
 	DeleteEvent(id int) error
 	GetEvent(id int) (Event, error)
 	GetAllEvents() ([]Event, error)
-	GetEventsByPeriod(startTime *EventTime, endTime *EventTime) ([]Event, error)
+	GetEventsByPeriod(startTime *DateTime, endTime *DateTime) ([]Event, error)
+	GetEventsForNotification(startTime *DateTime, endTime *DateTime) ([]Event, error)
 	Count() (int, error)
 	ClearAll() error
 }

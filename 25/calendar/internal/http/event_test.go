@@ -33,8 +33,8 @@ func TestNewEvent(t *testing.T) {
 
 func TestConvertFromCalendarEvent(t *testing.T) {
 	calendarEvent := entities.NewEvent("Do homework",
-		entities.NewEventTime(2019, 10, 15, 20, 0),
-		entities.NewEventTime(2019, 10, 15, 22, 0),
+		entities.NewDateTime(2019, 10, 15, 20, 0),
+		entities.NewDateTime(2019, 10, 15, 22, 0),
 	)
 
 	event := ConvertFromCalendarEvent(calendarEvent)
@@ -57,8 +57,8 @@ func TestConvertFromCalendarEvent(t *testing.T) {
 
 func TestConvertToCalendarEvent(t *testing.T) {
 	calendarEvent := entities.NewEvent("Do homework",
-		entities.NewEventTime(2019, 10, 15, 20, 0),
-		entities.NewEventTime(2019, 10, 15, 22, 0),
+		entities.NewDateTime(2019, 10, 15, 20, 0),
+		entities.NewDateTime(2019, 10, 15, 22, 0),
 	)
 
 	event := ConvertFromCalendarEvent(calendarEvent)

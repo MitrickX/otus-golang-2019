@@ -5,6 +5,7 @@ import (
 	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/domain/entities"
 	"sort"
 	"sync"
+	"time"
 )
 
 // Simplest entities struct, not support all day and repeat properties inherent for more sophisticated entities
@@ -28,7 +29,7 @@ func (calendar *Storage) AddEvent(event entities.Event) (int, error) {
 	calendar.mx.Lock()
 	calendar.autoincrement++
 	id := calendar.autoincrement
-	calendar.events[id] = event
+	calendar.events[id] = entities.WithId(event, id)
 	calendar.mx.Unlock()
 	return id, nil
 }
@@ -124,7 +125,7 @@ func (calendar *Storage) GetAllEvents() ([]entities.Event, error) {
 // Get all events that started in period (boundary of period are included) sorted by Less method of events
 // You also can pass nil for start or end times
 // nil has special means - no boundary for range period
-func (calendar *Storage) GetEventsByPeriod(startTime *entities.EventTime, endTime *entities.EventTime) ([]entities.Event, error) {
+func (calendar *Storage) GetEventsByPeriod(startTime *entities.DateTime, endTime *entities.DateTime) ([]entities.Event, error) {
 	calendar.mx.RLock()
 	eventsMap := calendar.events
 	calendar.mx.RUnlock()
@@ -142,6 +143,51 @@ func (calendar *Storage) GetEventsByPeriod(startTime *entities.EventTime, endTim
 		if endTime != nil && !event.Start().LessOrEqual(*endTime) {
 			inPeriod = false
 		}
+		if inPeriod {
+			events = append(events, event)
+		}
+	}
+
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Less(events[j])
+	})
+
+	return events, nil
+}
+
+//
+func (calendar *Storage) GetEventsForNotification(startTime *entities.DateTime, endTime *entities.DateTime) ([]entities.Event, error) {
+	allEvents, err := calendar.GetAllEvents()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(allEvents) == 0 {
+		return nil, nil
+	}
+
+	var events []entities.Event
+	for _, event := range allEvents {
+
+		if !event.IsNotifyingEnabled() {
+			continue
+		}
+
+		beforeMinutes := event.BeforeMinutes()
+		start := event.Start()
+
+		notifyT := start.Time().Add(-time.Duration(beforeMinutes) * time.Minute)
+		notifyTime := entities.ConvertFromTime(notifyT)
+
+		inPeriod := true
+		if startTime != nil && !startTime.LessOrEqual(notifyTime) {
+			inPeriod = false
+		}
+		if endTime != nil && !notifyTime.LessOrEqual(*endTime) {
+			inPeriod = false
+		}
+
 		if inPeriod {
 			events = append(events, event)
 		}

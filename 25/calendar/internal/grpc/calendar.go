@@ -145,7 +145,7 @@ func (c *Calendar) GetEventsByPeriod(period *Period) ([]*Event, error) {
 // Return slice of events and slice of errors
 // Method try return max events that could be returned
 func (c *Calendar) GetEventsByTimestampsPeriod(start *timestamp.Timestamp, end *timestamp.Timestamp) ([]*Event, error) {
-	var startTime, endTime *entities.EventTime
+	var startTime, endTime *entities.DateTime
 
 	if start != nil {
 		var err error

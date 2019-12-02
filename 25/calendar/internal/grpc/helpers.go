@@ -13,8 +13,8 @@ func NewTimestamp(year, month, day, hour, minute int) (*timestamp.Timestamp, err
 	return ptypes.TimestampProto(t)
 }
 
-// Inner helper that convert grpc timestamp.Timestamp to entities.EventTime
-func convertToCalendarEventTime(tspb *timestamp.Timestamp) (*entities.EventTime, error) {
+// Inner helper that convert grpc timestamp.Timestamp to entities.DateTime
+func convertToCalendarEventTime(tspb *timestamp.Timestamp) (*entities.DateTime, error) {
 	t, err := ptypes.Timestamp(tspb)
 	if err != nil {
 		return nil, err

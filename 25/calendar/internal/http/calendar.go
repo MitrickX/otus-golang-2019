@@ -91,7 +91,7 @@ func (thisCalendar *Calendar) GetAllEvents() ([]*Event, error) {
 // start/end are datetime values represented by string in format on this module (see http.dateTimeLayout)
 // Empty string has special meaning - no boundary for range period
 func (thisCalendar *Calendar) GetEventsByPeriod(start string, end string) ([]*Event, error) {
-	var startTime, endTime *entities.EventTime
+	var startTime, endTime *entities.DateTime
 	var err error
 
 	if start != "" {

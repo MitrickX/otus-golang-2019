@@ -108,7 +108,7 @@ func (event *Event) JsonMarshall() ([]byte, error) {
 }
 
 // Datetime in format on current package (dateTimeLayout)
-func ConvertToCalendarEventTime(datetime string) (*entities.EventTime, error) {
+func ConvertToCalendarEventTime(datetime string) (*entities.DateTime, error) {
 	t, err := time.Parse(dateTimeLayout, datetime)
 	if err != nil {
 		return nil, DefaultErrorInvalidDatetime

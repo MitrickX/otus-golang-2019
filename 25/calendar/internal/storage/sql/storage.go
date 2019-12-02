@@ -69,10 +69,11 @@ func NewConfig(m map[string]string) (*Config, error) {
 }
 
 type EventRow struct {
-	Id        int64
-	Name      string
-	StartTime string `db:"start_time"`
-	EndTime   string `db:"end_time"`
+	Id            int64
+	Name          string
+	StartTime     string `db:"start_time"`
+	EndTime       string `db:"end_time"`
+	BeforeMinutes *int64 `db:"before_minutes"`
 }
 
 type Storage struct {
@@ -107,24 +108,21 @@ func NewStorage(cfg Config) (*Storage, error) {
 }
 
 func (s *Storage) AddEvent(event entities.Event) (int, error) {
-	query := `INSERT INTO events(name, start_time, end_time) 
-				VALUES(:name, :start_time, :end_time)
+	query := `INSERT INTO events(name, start_time, end_time, before_minutes) 
+				VALUES(:name, :start_time, :end_time, :before_minutes)
 				RETURNING id`
 
 	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
-
-	/*map[string]string{
-		"name":       event.Name(),
-		"start_date": event.Start().Format(dateLayout),
-		"start_time": event.Start().Format(timeLayout),
-		"end_date":   event.End().Format(dateLayout),
-		"end_time":   event.End().Format(timeLayout),
-	}*/
 
 	eventRow := &EventRow{
 		Name:      event.Name(),
 		StartTime: event.Start().Format(datetimeLayout),
 		EndTime:   event.End().Format(datetimeLayout),
+	}
+
+	if event.IsNotifyingEnabled() {
+		beforeMinutes := int64(event.BeforeMinutes())
+		eventRow.BeforeMinutes = &beforeMinutes
 	}
 
 	stmt, err := s.db.PrepareNamedContext(ctx, query)
@@ -149,17 +147,6 @@ func (s *Storage) UpdateEvent(id int, event entities.Event) error {
 				WHERE id = :id`
 
 	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
-
-	/*
-		map[string]interface{}{
-				"id":         id,
-				"name":       event.Name(),
-				"start_date": event.Start().Format(dateLayout),
-				"start_time": event.Start().Format(timeLayout),
-				"end_date":   event.End().Format(dateLayout),
-				"end_time":   event.End().Format(timeLayout),
-			}
-	*/
 
 	eventRow := &EventRow{
 		Id:        int64(id),
@@ -235,7 +222,7 @@ func (s *Storage) GetAllEvents() ([]entities.Event, error) {
 	return s.getEvents(query, map[string]interface{}{})
 }
 
-func (s *Storage) GetEventsByPeriod(start *entities.EventTime, end *entities.EventTime) ([]entities.Event, error) {
+func (s *Storage) GetEventsByPeriod(start *entities.DateTime, end *entities.DateTime) ([]entities.Event, error) {
 
 	// where statement params that will be glued by AND operator
 	var where []string
@@ -251,6 +238,34 @@ func (s *Storage) GetEventsByPeriod(start *entities.EventTime, end *entities.Eve
 	if end != nil {
 		params["end_time"] = convertEventTimeToSqlDateTime(*end)
 		where = append(where, "start_time <= :end_time")
+	}
+
+	// build query
+	whereStr := strings.Join(where, " AND ")
+	query := buildSelectEventQuery(whereStr)
+
+	// get events
+	return s.getEvents(query, params)
+}
+
+//
+func (s *Storage) GetEventsForNotification(start *entities.DateTime, end *entities.DateTime) ([]entities.Event, error) {
+	// where statement params that will be glued by AND operator
+	var where []string
+
+	where = append(where, "before_minutes IS NOT NULL")
+
+	// bind params
+	params := make(map[string]interface{})
+
+	if start != nil {
+		params["start_time"] = convertEventTimeToSqlDateTime(*start)
+		where = append(where, "(start_time - make_interval(mins => before_minutes) >= :start_time)")
+	}
+
+	if end != nil {
+		params["end_time"] = convertEventTimeToSqlDateTime(*end)
+		where = append(where, "(start_time - make_interval(mins => before_minutes) <= :end_time)")
 	}
 
 	// build query
@@ -335,7 +350,7 @@ func (s *Storage) getEvents(query string, arg interface{}) ([]entities.Event, er
 	return events, nil
 }
 
-func convertSqlDateTimeToEventTime(dateTime string) (*entities.EventTime, error) {
+func convertSqlDateTimeToEventTime(dateTime string) (*entities.DateTime, error) {
 	t, err := time.Parse(datetimeLayout, dateTime)
 	if err != nil {
 		return nil, err
@@ -344,7 +359,7 @@ func convertSqlDateTimeToEventTime(dateTime string) (*entities.EventTime, error)
 	return &eventTime, nil
 }
 
-func convertEventTimeToSqlDateTime(eventTime entities.EventTime) string {
+func convertEventTimeToSqlDateTime(eventTime entities.DateTime) string {
 	return eventTime.Format(datetimeLayout)
 }
 
