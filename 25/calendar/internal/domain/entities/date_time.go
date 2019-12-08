@@ -59,3 +59,13 @@ func (eventTime DateTime) Format(layout string) string {
 func (eventTime DateTime) Time() time.Time {
 	return eventTime.t
 }
+
+// Minus minutes
+func (eventTime DateTime) MinusMinutes(m int) DateTime {
+	return ConvertFromTime(eventTime.t.Add(-time.Duration(m) * time.Minute))
+}
+
+// Plus minutes
+func (eventTime DateTime) PlusMinutes(m int) DateTime {
+	return ConvertFromTime(eventTime.t.Add(time.Duration(m) * time.Minute))
+}

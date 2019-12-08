@@ -51,10 +51,10 @@ func (calendar *Storage) UpdateEvent(id int, event entities.Event) error {
 		return errors.New("event not found")
 	}
 
-	storedEntity := entities.NewEventWithId(id, event.Name(), event.Start(), event.End())
+	newEvent := entities.WithId(event, id)
 
 	calendar.mx.Lock()
-	calendar.events[id] = storedEntity
+	calendar.events[id] = newEvent
 	calendar.mx.Unlock()
 
 	return nil
@@ -156,7 +156,7 @@ func (calendar *Storage) GetEventsByPeriod(startTime *entities.DateTime, endTime
 }
 
 //
-func (calendar *Storage) GetEventsForNotification(startTime *entities.DateTime, endTime *entities.DateTime) ([]entities.Event, error) {
+func (calendar *Storage) GetEventsToNotify(startTime *entities.DateTime, endTime *entities.DateTime) ([]entities.Event, error) {
 	allEvents, err := calendar.GetAllEvents()
 
 	if err != nil {
@@ -170,7 +170,7 @@ func (calendar *Storage) GetEventsForNotification(startTime *entities.DateTime, 
 	var events []entities.Event
 	for _, event := range allEvents {
 
-		if !event.IsNotifyingEnabled() {
+		if !event.IsNotifyingEnabled() || event.IsNotified() {
 			continue
 		}
 
@@ -198,6 +198,16 @@ func (calendar *Storage) GetEventsForNotification(startTime *entities.DateTime, 
 	})
 
 	return events, nil
+}
+
+// Mark event as notified and set time when was notified
+func (calendar *Storage) MarkEventAsNotified(id int, when time.Time) error {
+	event, err := calendar.GetEvent(id)
+	if err != nil {
+		return err
+	}
+	newEvent := event.Notified(when)
+	return calendar.UpdateEvent(id, newEvent)
 }
 
 // Total number of events now in entities

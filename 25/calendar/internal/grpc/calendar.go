@@ -16,14 +16,14 @@ type ErrorEventListErrors struct {
 
 func (e *ErrorEventListErrors) Error() string {
 	buffer := strings.Builder{}
-	buffer.WriteString("Some errors happened when get event list: ")
+	_, _ = buffer.WriteString("Some errors happened when get event list: ")
 	first := true
 	for _, er := range e.errs {
 		if first {
-			buffer.WriteString(fmt.Sprintf("%w", er))
+			_, _ = buffer.WriteString(er.Error())
 			first = false
 		} else {
-			buffer.WriteString(fmt.Sprintf(", %w", er))
+			_, _ = buffer.WriteString(er.Error())
 		}
 
 	}

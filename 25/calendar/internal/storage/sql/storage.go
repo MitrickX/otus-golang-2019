@@ -71,9 +71,10 @@ func NewConfig(m map[string]string) (*Config, error) {
 type EventRow struct {
 	Id            int64
 	Name          string
-	StartTime     string `db:"start_time"`
-	EndTime       string `db:"end_time"`
-	BeforeMinutes *int64 `db:"before_minutes"`
+	StartTime     string  `db:"start_time"`
+	EndTime       string  `db:"end_time"`
+	BeforeMinutes *int64  `db:"before_minutes"`
+	NotifiedTime  *string `db:"notified_time"`
 }
 
 type Storage struct {
@@ -94,7 +95,9 @@ func NewStorage(cfg Config) (*Storage, error) {
 		timeout = 5 * time.Second
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
 
 	err = db.PingContext(ctx)
 	if err != nil {
@@ -108,22 +111,15 @@ func NewStorage(cfg Config) (*Storage, error) {
 }
 
 func (s *Storage) AddEvent(event entities.Event) (int, error) {
-	query := `INSERT INTO events(name, start_time, end_time, before_minutes) 
-				VALUES(:name, :start_time, :end_time, :before_minutes)
+	query := `INSERT INTO events(name, start_time, end_time, before_minutes, notified_time) 
+				VALUES(:name, :start_time, :end_time, :before_minutes, :notified_time)
 				RETURNING id`
 
-	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 
-	eventRow := &EventRow{
-		Name:      event.Name(),
-		StartTime: event.Start().Format(datetimeLayout),
-		EndTime:   event.End().Format(datetimeLayout),
-	}
+	defer cancel()
 
-	if event.IsNotifyingEnabled() {
-		beforeMinutes := int64(event.BeforeMinutes())
-		eventRow.BeforeMinutes = &beforeMinutes
-	}
+	eventRow := convertEventToEventRow(event)
 
 	stmt, err := s.db.PrepareNamedContext(ctx, query)
 	if err != nil {
@@ -141,19 +137,20 @@ func (s *Storage) AddEvent(event entities.Event) (int, error) {
 }
 
 func (s *Storage) UpdateEvent(id int, event entities.Event) error {
-	query := `UPDATE events SET name = :name, 
+	query := `UPDATE events SET 
+					name = :name, 
 					start_time = :start_time,
-					end_time = :end_time
+					end_time = :end_time,
+					before_minutes = :before_minutes,
+					notified_time = :notified_time
 				WHERE id = :id`
 
-	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 
-	eventRow := &EventRow{
-		Id:        int64(id),
-		Name:      event.Name(),
-		StartTime: event.Start().Format(datetimeLayout),
-		EndTime:   event.End().Format(datetimeLayout),
-	}
+	defer cancel()
+
+	newEvent := entities.WithId(event, id)
+	eventRow := convertEventToEventRow(newEvent)
 
 	result, err := s.db.NamedExecContext(ctx, query, eventRow)
 	if err != nil {
@@ -175,7 +172,9 @@ func (s *Storage) UpdateEvent(id int, event entities.Event) error {
 func (s *Storage) DeleteEvent(id int) error {
 	query := `DELETE FROM events WHERE id = $1`
 
-	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+
+	defer cancel()
 
 	result, err := s.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -249,11 +248,12 @@ func (s *Storage) GetEventsByPeriod(start *entities.DateTime, end *entities.Date
 }
 
 //
-func (s *Storage) GetEventsForNotification(start *entities.DateTime, end *entities.DateTime) ([]entities.Event, error) {
+func (s *Storage) GetEventsToNotify(start *entities.DateTime, end *entities.DateTime) ([]entities.Event, error) {
 	// where statement params that will be glued by AND operator
 	var where []string
 
 	where = append(where, "before_minutes IS NOT NULL")
+	where = append(where, "notified_time IS NULL")
 
 	// bind params
 	params := make(map[string]interface{})
@@ -276,9 +276,21 @@ func (s *Storage) GetEventsForNotification(start *entities.DateTime, end *entiti
 	return s.getEvents(query, params)
 }
 
+func (s *Storage) MarkEventAsNotified(id int, time time.Time) error {
+	event, err := s.GetEvent(id)
+	if err != nil {
+		return err
+	}
+	newEvent := event.Notified(time)
+	return s.UpdateEvent(id, newEvent)
+}
+
 func (s *Storage) Count() (int, error) {
 	query := `SELECT COUNT(*) FROM events`
-	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+
+	defer cancel()
+
 	row := s.db.QueryRowContext(ctx, query)
 
 	var count int
@@ -292,7 +304,11 @@ func (s *Storage) Count() (int, error) {
 
 func (s *Storage) ClearAll() error {
 	query := `DELETE FROM events`
-	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+
+	defer cancel()
+
 	_, err := s.db.ExecContext(ctx, query)
 	if err != nil {
 		return err
@@ -302,7 +318,9 @@ func (s *Storage) ClearAll() error {
 
 func (s *Storage) getEvents(query string, arg interface{}) ([]entities.Event, error) {
 
-	ctx, _ := context.WithTimeout(context.Background(), s.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+
+	defer cancel()
 
 	var rows *sqlx.Rows
 	var err error
@@ -368,7 +386,9 @@ func buildSelectEventQuery(where string) string {
 					id, 
 					name, 
 					to_char(start_time, 'YYYY-MM-DD HH24::MI::SS') AS start_time, 
-					to_char(end_time, 'YYYY-MM-DD HH24::MI::SS') AS end_time
+					to_char(end_time, 'YYYY-MM-DD HH24::MI::SS') AS end_time,
+					before_minutes,
+					to_char(notified_time, 'YYYY-MM-DD HH24::MI::SS') AS notified_time
 				FROM events `
 	if where == "" {
 		return query
@@ -388,6 +408,54 @@ func convertEventRowToEvent(eventRow *EventRow) (*entities.Event, error) {
 		return nil, fmt.Errorf("end datetime preparing error: %w", err)
 	}
 
-	event := entities.NewEventWithId(int(eventRow.Id), eventRow.Name, *start, *end)
+	isNotifyingEnabled := false
+	beforeMinutes := 0
+	if eventRow.BeforeMinutes != nil {
+		isNotifyingEnabled = true
+		beforeMinutes = int(*eventRow.BeforeMinutes)
+	}
+
+	isNotified := false
+	notifiedTime := time.Time{}
+	if eventRow.NotifiedTime != nil {
+		isNotified = true
+		notifiedTime, err = time.Parse(datetimeLayout, *eventRow.NotifiedTime)
+		if err != nil {
+			return nil, fmt.Errorf("notified datetime preparing error: %w", err)
+		}
+	}
+
+	event := entities.NewDetailedEventWithId(
+		int(eventRow.Id),
+		eventRow.Name,
+		*start,
+		*end,
+		isNotifyingEnabled,
+		beforeMinutes,
+		isNotified,
+		notifiedTime,
+	)
+
 	return &event, nil
+}
+
+func convertEventToEventRow(event entities.Event) EventRow {
+	eventRow := EventRow{
+		Id:        int64(event.Id()),
+		Name:      event.Name(),
+		StartTime: event.Start().Format(datetimeLayout),
+		EndTime:   event.End().Format(datetimeLayout),
+	}
+
+	if event.IsNotifyingEnabled() {
+		beforeMinutes := int64(event.BeforeMinutes())
+		eventRow.BeforeMinutes = &beforeMinutes
+	}
+
+	if event.IsNotified() {
+		notifiedTime := event.NotifiedTime().Format(datetimeLayout)
+		eventRow.NotifiedTime = &notifiedTime
+	}
+
+	return eventRow
 }

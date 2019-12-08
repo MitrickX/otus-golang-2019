@@ -501,10 +501,10 @@ func RunTestGrpcPipe(t *testing.T) (*Service, ServiceClient) {
 func RunTestClient(listener *bufconn.Listener) (client ServiceClient, resultCh chan error) {
 	resultCh = make(chan error, 1)
 
-	bufDialer := func(_ string, _ time.Duration) (net.Conn, error) {
+	bufDialer := func(_ context.Context, _ string) (net.Conn, error) {
 		return listener.Dial()
 	}
-	conn, err := grpc.Dial("bufnet", grpc.WithDialer(bufDialer), grpc.WithInsecure())
+	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		resultCh <- fmt.Errorf("grpc Dial with bufconn connection return error %s\n", err)
 		return

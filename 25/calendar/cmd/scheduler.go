@@ -16,21 +16,68 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
+	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/logger"
+	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/notificaiton"
+	"github.com/spf13/cast"
+	"github.com/spf13/viper"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
-// schedulerCmd represents the scheduler command
 var schedulerCmd = &cobra.Command{
 	Use:   "scheduler",
 	Short: "A notification scheduler",
-	Long: `A notification scheduler.`,
+	Long:  `A notification scheduler.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("scheduler called")
+		runNotificationScheduler()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(schedulerCmd)
+}
+
+// Run notification scheduler
+func runNotificationScheduler() {
+
+	log := logger.GetLogger()
+
+	nConf := viper.GetStringMap("notification")
+	if nConf == nil {
+		log.Fatal("can't init scheduler, notification settings not found in `notification` key of config")
+	}
+
+	confVar, ok := nConf["scheduler"]
+	if !ok {
+		log.Fatal("can't init scheduler, queue settings not found in `scheduler` key key of `notification` config")
+	}
+
+	sConf := cast.ToStringMapString(confVar)
+
+	scanTimeoutVal, ok := sConf["scan_timeout"]
+	if !ok {
+		scanTimeoutVal = "1m"
+	}
+
+	scanTimeout, err := time.ParseDuration(scanTimeoutVal)
+	if err != nil {
+		log.Fatal("can't init scheduler, fail on parsing `scan_timeout` value == `%s`", scanTimeoutVal)
+	}
+
+	queue := NewNotificationQueue()
+	storage := NewDbStorage()
+
+	scheduler := notificaiton.NewScheduler(
+		scanTimeout,
+		storage,
+		queue,
+		log,
+	)
+
+	err = scheduler.Run()
+	if err != nil {
+		log.Fatal("can't run scheduler, error happened: %s", err)
+	}
+
 }

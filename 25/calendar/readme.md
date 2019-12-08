@@ -4,13 +4,21 @@ In project used cobra (with viper) and zap <br>
 **Usage:** <br>
 
 Simple call (will use default config): <br>
+
 For run http service <br>
-**calendar run http** <br>
+**calendar http** <br>
+
 For run grpc service <br>
-**calendar run grpc** <br>
+**calendar grpc** <br>
+
+For run notification scheduler <br>
+**calendar scheduler** <br>
+
+For run notification sender <br>
+**calendar sender** <br>
 
 If you want set own custom config: <br>
-**calendar --config <path_to_config> run [http|grpc]** <br>
+**calendar --config <path_to_config> [http|grpc|scheduler|sender]** <br>
 
 In config 'db' is DB connection settings (DB is PostgreSQL)<br>
 If you want off DB storage just don't have 'db' key in config <br><br>

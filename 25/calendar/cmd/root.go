@@ -1,7 +1,12 @@
 package cmd
 
 import (
+	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/domain/entities"
 	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/logger"
+	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/notificaiton"
+	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/storage/memory"
+	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/storage/sql"
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
@@ -57,4 +62,54 @@ func initConfig() {
 
 func initLogger() {
 	logger.InitLogger(viper.GetViper())
+}
+
+func NewDbStorage() entities.Storage {
+	log := logger.GetLogger()
+
+	var storage entities.Storage
+
+	dbConf := viper.GetStringMapString("db")
+	if dbConf == nil {
+		storage = memory.NewStorage()
+	} else {
+		dbConfig, err := sql.NewConfig(dbConf)
+		if err != nil {
+			log.Fatalf("can't init sql storage %s\n", err)
+		}
+		storage, err = sql.NewStorage(*dbConfig)
+		if err != nil {
+			log.Fatalf("can't init sql storage %s\n", err)
+		}
+	}
+
+	return storage
+}
+
+func NewNotificationQueue() notificaiton.Queue {
+	log := logger.GetLogger()
+
+	nConf := viper.GetStringMap("notification")
+	if nConf == nil {
+		log.Fatal("can't init queue, notification settings not found in `notification` key of config")
+	}
+
+	confVar, ok := nConf["queue"]
+	if !ok {
+		log.Fatal("can't init queue, queue settings not found in `queue` key key of `notification` config")
+	}
+
+	qConf := cast.ToStringMapString(confVar)
+
+	qConfig, err := notificaiton.NewConfig(qConf)
+	if err != nil {
+		log.Fatalf("can't init queue %s\n", err)
+	}
+
+	queue, err := notificaiton.NewRabbitQueue(*qConfig)
+	if err != nil {
+		log.Fatalf("can't init queue %s\n", err)
+	}
+
+	return queue
 }

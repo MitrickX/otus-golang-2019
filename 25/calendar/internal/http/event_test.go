@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/domain/entities"
 	"testing"
 	"time"
@@ -117,9 +116,7 @@ func TestJsonMarshal(t *testing.T) {
 	resultStr := string(result)
 
 	if expected != resultStr {
-		t.Errorf("expect result %s, got result %s\n",
-			fmt.Sprintf("%s", expected),
-			fmt.Sprintf("%s", resultStr))
+		t.Errorf("expect result %s, got result %s\n", expected, resultStr)
 	}
 }
 

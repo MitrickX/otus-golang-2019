@@ -418,7 +418,7 @@ func TestDeleteEventOK(t *testing.T) {
 		return
 	}
 
-	event, found := service.GetEvent(id)
+	_, found := service.GetEvent(id)
 	if found {
 		t.Errorf("event with id = %d have not be deleted on entities service", id)
 		return

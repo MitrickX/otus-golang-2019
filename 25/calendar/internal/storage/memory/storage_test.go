@@ -4,6 +4,7 @@ import (
 	"github.com/mitrickx/otus-golang-2019/25/calendar/internal/domain/entities"
 	"reflect"
 	"testing"
+	"time"
 )
 
 // Test adding new event in entities
@@ -34,7 +35,7 @@ func TestAddEvent(t *testing.T) {
 		entities.NewDateTime(2019, 10, 16, 1, 0),
 	)
 
-	calendar.AddEvent(event2)
+	_, _ = calendar.AddEvent(event2)
 
 	if getCalendarCount(calendar) != 2 {
 		t.Errorf("entities must has 2 event instead of %d\n", getCalendarCount(calendar))
@@ -148,7 +149,7 @@ func TestDeleteEvent(t *testing.T) {
 		t.Error("delete actually not happened")
 	}
 
-	err = calendar.DeleteEvent(id2)
+	_ = calendar.DeleteEvent(id2)
 
 	if getCalendarCount(calendar) != 0 {
 		t.Error("delete actually not happened, after 2 delete calender must be empty")
@@ -158,37 +159,37 @@ func TestDeleteEvent(t *testing.T) {
 func TestGetEvents(t *testing.T) {
 	calendar := NewStorage()
 
-	calendar.AddEvent(entities.NewEvent("Monday",
+	_, _ = calendar.AddEvent(entities.NewEvent("Monday",
 		entities.NewDateTime(2019, 11, 18, 8, 0),
 		entities.NewDateTime(2019, 11, 18, 10, 0),
 	))
 
-	calendar.AddEvent(entities.NewEvent("Tuesday",
+	_, _ = calendar.AddEvent(entities.NewEvent("Tuesday",
 		entities.NewDateTime(2019, 11, 19, 8, 0),
 		entities.NewDateTime(2019, 11, 19, 10, 0),
 	))
 
-	calendar.AddEvent(entities.NewEvent("Wednesday",
+	_, _ = calendar.AddEvent(entities.NewEvent("Wednesday",
 		entities.NewDateTime(2019, 11, 20, 8, 0),
 		entities.NewDateTime(2019, 11, 20, 10, 0),
 	))
 
-	calendar.AddEvent(entities.NewEvent("Thursday",
+	_, _ = calendar.AddEvent(entities.NewEvent("Thursday",
 		entities.NewDateTime(2019, 11, 21, 8, 0),
 		entities.NewDateTime(2019, 11, 21, 10, 0),
 	))
 
-	calendar.AddEvent(entities.NewEvent("Friday",
+	_, _ = calendar.AddEvent(entities.NewEvent("Friday",
 		entities.NewDateTime(2019, 11, 22, 8, 0),
 		entities.NewDateTime(2019, 11, 22, 10, 0),
 	))
 
-	calendar.AddEvent(entities.NewEvent("Saturday",
+	_, _ = calendar.AddEvent(entities.NewEvent("Saturday",
 		entities.NewDateTime(2019, 11, 23, 8, 0),
 		entities.NewDateTime(2019, 11, 23, 10, 0),
 	))
 
-	calendar.AddEvent(entities.NewEvent("Sunday",
+	_, _ = calendar.AddEvent(entities.NewEvent("Sunday",
 		entities.NewDateTime(2019, 11, 24, 8, 0),
 		entities.NewDateTime(2019, 11, 24, 10, 0),
 	))
@@ -266,12 +267,16 @@ func TestGetEventsForNotification1(t *testing.T) {
 	calendar := NewStorage()
 
 	_, err := calendar.AddEvent(
-		entities.NewNotifiedEvent(
+		entities.NewDetailedEvent(
 			"TestEvent",
 			entities.NewDateTime(2019, 11, 18, 8, 0),
 			entities.NewDateTime(2019, 11, 18, 10, 0),
+			true,
 			30,
-		))
+			false,
+			time.Time{},
+		),
+	)
 
 	if err != nil {
 		t.Errorf("Error while insert: %s", err)
@@ -279,12 +284,16 @@ func TestGetEventsForNotification1(t *testing.T) {
 	}
 
 	_, err = calendar.AddEvent(
-		entities.NewNotifiedEvent(
+		entities.NewDetailedEvent(
 			"TestEvent2",
 			entities.NewDateTime(2019, 11, 18, 8, 0),
 			entities.NewDateTime(2019, 11, 18, 10, 0),
+			true,
 			10,
-		))
+			false,
+			time.Time{},
+		),
+	)
 
 	if err != nil {
 		t.Errorf("Error while insert: %s", err)
@@ -294,7 +303,7 @@ func TestGetEventsForNotification1(t *testing.T) {
 	start := entities.NewDateTime(2019, 11, 18, 7, 0)
 	end := entities.NewDateTime(2019, 11, 18, 8, 0)
 
-	entites, err := calendar.GetEventsForNotification(&start, &end)
+	entites, err := calendar.GetEventsToNotify(&start, &end)
 
 	if err != nil {
 		t.Errorf("Error while getting events: %s", err)
@@ -312,12 +321,16 @@ func TestGetEventsForNotification2(t *testing.T) {
 	calendar := NewStorage()
 
 	event1Id, err := calendar.AddEvent(
-		entities.NewNotifiedEvent(
+		entities.NewDetailedEvent(
 			"TestEvent",
 			entities.NewDateTime(2019, 11, 18, 8, 0),
 			entities.NewDateTime(2019, 11, 18, 10, 0),
+			true,
 			30,
-		))
+			false,
+			time.Time{},
+		),
+	)
 
 	if err != nil {
 		t.Errorf("Error while insert: %s", err)
@@ -325,12 +338,16 @@ func TestGetEventsForNotification2(t *testing.T) {
 	}
 
 	_, err = calendar.AddEvent(
-		entities.NewNotifiedEvent(
+		entities.NewDetailedEvent(
 			"TestEvent2",
 			entities.NewDateTime(2019, 11, 18, 8, 0),
 			entities.NewDateTime(2019, 11, 18, 10, 0),
+			true,
 			10,
-		))
+			false,
+			time.Time{},
+		),
+	)
 
 	if err != nil {
 		t.Errorf("Error while insert: %s", err)
@@ -340,7 +357,7 @@ func TestGetEventsForNotification2(t *testing.T) {
 	start := entities.NewDateTime(2019, 11, 18, 7, 0)
 	end := entities.NewDateTime(2019, 11, 18, 7, 49)
 
-	events, err := calendar.GetEventsForNotification(&start, &end)
+	events, err := calendar.GetEventsToNotify(&start, &end)
 
 	if err != nil {
 		t.Errorf("Error while getting events: %s", err)
@@ -363,12 +380,16 @@ func TestGetEventsForNotification3(t *testing.T) {
 	calendar := NewStorage()
 
 	_, err := calendar.AddEvent(
-		entities.NewNotifiedEvent(
+		entities.NewDetailedEvent(
 			"TestEvent",
 			entities.NewDateTime(2019, 11, 18, 8, 0),
 			entities.NewDateTime(2019, 11, 18, 10, 0),
+			true,
 			30,
-		))
+			false,
+			time.Time{},
+		),
+	)
 
 	if err != nil {
 		t.Errorf("Error while insert: %s", err)
@@ -376,12 +397,16 @@ func TestGetEventsForNotification3(t *testing.T) {
 	}
 
 	_, err = calendar.AddEvent(
-		entities.NewNotifiedEvent(
+		entities.NewDetailedEvent(
 			"TestEvent2",
 			entities.NewDateTime(2019, 11, 18, 8, 0),
 			entities.NewDateTime(2019, 11, 18, 10, 0),
+			true,
 			10,
-		))
+			false,
+			time.Time{},
+		),
+	)
 
 	if err != nil {
 		t.Errorf("Error while insert: %s", err)
@@ -391,7 +416,7 @@ func TestGetEventsForNotification3(t *testing.T) {
 	start := entities.NewDateTime(2019, 11, 18, 8, 1)
 	end := entities.NewDateTime(2019, 11, 18, 8, 59)
 
-	events, err := calendar.GetEventsForNotification(&start, &end)
+	events, err := calendar.GetEventsToNotify(&start, &end)
 
 	if err != nil {
 		t.Errorf("Error while getting events: %s", err)
@@ -403,6 +428,119 @@ func TestGetEventsForNotification3(t *testing.T) {
 		return
 	}
 
+}
+
+func TestGetEventsForNotification4(t *testing.T) {
+
+	calendar := NewStorage()
+
+	originalEvents := []entities.Event{
+		entities.NewDetailedEvent(
+			"A",
+			entities.NewDateTime(2019, 11, 18, 8, 0),
+			entities.NewDateTime(2019, 11, 18, 10, 0),
+			true,
+			30,
+			false,
+			time.Time{},
+		),
+		entities.NewDetailedEvent(
+			"B",
+			entities.NewDateTime(2019, 11, 19, 8, 0),
+			entities.NewDateTime(2019, 11, 19, 10, 0),
+			true,
+			10,
+			false,
+			time.Time{},
+		),
+	}
+
+	for index, event := range originalEvents {
+		id, err := calendar.AddEvent(event)
+		if err != nil {
+			t.Errorf("Error while insert %s: %s", event.Name(), err)
+			return
+		}
+		originalEvents[index] = entities.WithId(event, id)
+	}
+
+	start := originalEvents[0].Start().MinusMinutes(originalEvents[0].BeforeMinutes())
+	end := originalEvents[1].Start().MinusMinutes(originalEvents[1].BeforeMinutes())
+
+	events, err := calendar.GetEventsToNotify(&start, &end)
+
+	if err != nil {
+		t.Errorf("Error while getting events: %s", err)
+		return
+	}
+
+	var names []string
+	for _, event := range events {
+		names = append(names, event.Name())
+	}
+
+	expectedNames := []string{"A", "B"}
+
+	if !reflect.DeepEqual(expectedNames, names) {
+		t.Errorf("Expected names %v insteadof %v", expectedNames, names)
+	}
+
+}
+
+func TestMarkEventAsNotified(t *testing.T) {
+
+	calendar := NewStorage()
+
+	id, err := calendar.AddEvent(
+		entities.NewDetailedEvent(
+			"A",
+			entities.NewDateTime(2019, 11, 18, 8, 0),
+			entities.NewDateTime(2019, 11, 18, 10, 0),
+			true,
+			30,
+			false,
+			time.Time{},
+		),
+	)
+
+	if err != nil {
+		t.Errorf("Error while insert: %s", err)
+		return
+	}
+
+	event, err := calendar.GetEvent(id)
+
+	if err != nil {
+		t.Errorf("Error while get by id %d: %s", id, err)
+		return
+	}
+
+	if event.IsNotified() {
+		t.Errorf("Event with id %d must not be marked as notified yet", id)
+		return
+	}
+
+	dt := time.Date(2000, time.Month(10), 13, 14, 32, 18, 0, time.UTC)
+
+	_ = calendar.MarkEventAsNotified(id, dt)
+
+	event, err = calendar.GetEvent(id)
+
+	if err != nil {
+		t.Errorf("Error while get by id %d: %s", id, err)
+		return
+	}
+
+	if !event.IsNotified() {
+		t.Errorf("Event with id %d must be marked as notified", id)
+		return
+	}
+
+	nTime := event.NotifiedTime()
+
+	if !dt.Equal(nTime) {
+		t.Errorf("Notified time of event with id %d not equal to original time", id)
+	}
 }
 
 func getCalendarCount(storage *Storage) int {

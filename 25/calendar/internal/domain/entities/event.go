@@ -2,16 +2,19 @@ package entities
 
 import (
 	"fmt"
+	"time"
 )
 
 // Simplest event struct, not support all day and repeat properties
 type Event struct {
-	id            int      // id of event, need for identify event in entities
-	name          string   // name of event
-	start         DateTime // start event time
-	end           DateTime // end event time
-	notify        bool     // need or not notify
-	beforeMinutes int      // notify before minutes
+	id                int       // id of event, need for identify event in entities
+	name              string    // name of event
+	start             DateTime  // start event time
+	end               DateTime  // end event time
+	isNotifyingEnable bool      // need or not isNotifyingEnable
+	beforeMinutes     int       // isNotifyingEnable before minutes
+	isNotified        bool      // was notification enqueued
+	notifiedTime      time.Time // when notification enqueued
 }
 
 // Constructor
@@ -41,16 +44,50 @@ func NewEventWithId(id int, name string, start DateTime, end DateTime) Event {
 	return event
 }
 
-// Constructor for event with notification parameters
-func NewNotifiedEvent(name string, start DateTime, end DateTime, beforeMinutes int) Event {
-	event := Event{
-		name:          name,
-		start:         start,
-		end:           end,
-		notify:        true,
-		beforeMinutes: beforeMinutes,
+// Constructor for event all fields
+func NewDetailedEvent(
+	name string,
+	start DateTime,
+	end DateTime,
+	isNotifyingEnable bool,
+	beforeMinutes int,
+	isNotified bool,
+	notifiedTime time.Time,
+) Event {
+
+	return Event{
+		name:              name,
+		start:             start,
+		end:               end,
+		isNotifyingEnable: isNotifyingEnable,
+		beforeMinutes:     beforeMinutes,
+		isNotified:        isNotified,
+		notifiedTime:      notifiedTime,
 	}
-	return event
+}
+
+// Constructor for event all fields AND id
+func NewDetailedEventWithId(
+	id int,
+	name string,
+	start DateTime,
+	end DateTime,
+	isNotifyingEnable bool,
+	beforeMinutes int,
+	isNotified bool,
+	notifiedTime time.Time,
+) Event {
+
+	return Event{
+		id:                id,
+		name:              name,
+		start:             start,
+		end:               end,
+		isNotifyingEnable: isNotifyingEnable,
+		beforeMinutes:     beforeMinutes,
+		isNotified:        isNotified,
+		notifiedTime:      notifiedTime,
+	}
 }
 
 // Id of event getter
@@ -75,12 +112,27 @@ func (event Event) End() DateTime {
 
 //
 func (event Event) IsNotifyingEnabled() bool {
-	return event.notify
+	return event.isNotifyingEnable
 }
 
 //
 func (event Event) BeforeMinutes() int {
 	return event.beforeMinutes
+}
+
+//
+func (event Event) IsNotified() bool {
+	return event.isNotified
+}
+
+func (event Event) NotifiedTime() time.Time {
+	return event.notifiedTime
+}
+
+func (event Event) Notified(t time.Time) Event {
+	event.isNotified = true
+	event.notifiedTime = t
+	return event
 }
 
 // Less method for compare 2 event, will need for sorting in entities

@@ -1,11 +1,23 @@
 ports:
   http: 8080
   grps: 50051
+
 db:
   host: "localhost"
   port: 5432
   dbname: "calendar"
   user: "calendar"
   password: "1234"
+
+notification:
+  queue:
+    host: "localhost"
+    port: "5672"
+    user: "guest"
+    password: "guest"
+    qname: "events"
+  scheduler:
+    scan_timeout: "5s"
+
 logger:
   level: "debug"
