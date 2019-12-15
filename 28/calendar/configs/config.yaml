@@ -8,7 +8,7 @@ db:
   dbname: "calendar"
   user: "otus"
   password: "1234"
-  connect_retries: 10
+  connect_retries: 20
 
 notification:
   queue:
@@ -17,7 +17,7 @@ notification:
     user: "guest"
     password: "guest"
     qname: "events"
-    connect_retries: 10
+    connect_retries: 20
   scheduler:
     scan_timeout: "5s"
 

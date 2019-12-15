@@ -1,6 +1,9 @@
 Simple calendar with http interface <br>
 In project used cobra (with viper) and zap <br>
 
+**Docker compose:**<br>
+cd ./build/package && docker-compose up
+
 **Usage:** <br>
 
 Simple call (will use default config): <br>
@@ -28,3 +31,4 @@ For run tests:<br>
 
 If you want test sql.Storage, you must CREATE test database first and connection settings must be declared in test.yaml config within 'db' key AND tests must be running from directory internal/storage/sql<br>
 **cd internal/storage/sql && go test -v -race . && cd ../../../**
+
