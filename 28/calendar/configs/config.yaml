@@ -1,0 +1,25 @@
+port:
+  http: 8888
+  grps: 50051
+
+db:
+  host: "postgres"
+  port: 5432
+  dbname: "calendar"
+  user: "otus"
+  password: "1234"
+  connect_retries: 10
+
+notification:
+  queue:
+    host: "rabbit"
+    port: "5672"
+    user: "guest"
+    password: "guest"
+    qname: "events"
+    connect_retries: 10
+  scheduler:
+    scan_timeout: "5s"
+
+logger:
+  level: "debug"

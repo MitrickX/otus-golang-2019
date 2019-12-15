@@ -1,0 +1,61 @@
+version: '3'
+services:
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_USER=otus
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=calendar
+    ports:
+      - 5432
+      
+  flyway:
+    image: 'flyway/flyway'
+    command: -url=jdbc:postgresql://postgres:5432/calendar -connectRetries=20 -user=otus -password=1234 migrate
+    volumes:
+      - ../../sql:/flyway/sql
+    depends_on:
+      - postgres
+
+  rabbit:
+    image: 'rabbitmq:3-management'
+    ports:
+      - 15672
+      - 5672
+
+  http:
+    build:
+      context: ../..
+      dockerfile: ./build/package/Dockerfile
+    command: ./calendar --config ./configs/config.yaml http
+    volumes: 
+      - ../../configs:/root/configs
+    ports:
+      - '8888:8888'
+    depends_on:
+      - postgres
+
+  scheduler:
+    build:
+      context: ../..
+      dockerfile: ./build/package/Dockerfile
+    command: ./calendar --config ./configs/config.yaml scheduler
+    volumes: 
+      - ../../configs:/root/configs
+    depends_on:
+      - postgres
+      - rabbit
+      - http
+
+  sender:
+    build:
+      context: ../..
+      dockerfile: ./build/package/Dockerfile
+    command: ./calendar --config ./configs/config.yaml sender
+    volumes: 
+      - ../../configs:/root/configs
+    depends_on:
+      - postgres
+      - rabbit
+      - http
+      - scheduler
