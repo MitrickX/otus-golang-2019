@@ -251,13 +251,13 @@ func (service *Service) writeOkResponse(w http.ResponseWriter, result string, co
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
+
 	_, writeErr := w.Write(data)
 	if writeErr != nil && service.logger != nil {
 		service.logger.Errorf("Service.writeOkResponse, write `OkResponse` error %s", err)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
 }
 
 // inner helper for write error json response

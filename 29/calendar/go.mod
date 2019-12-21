@@ -3,6 +3,7 @@ module github.com/mitrickx/otus-golang-2019/29/calendar
 go 1.13
 
 require (
+	github.com/DATA-DOG/godog v0.7.13
 	github.com/golang/protobuf v1.3.2
 	github.com/gorilla/mux v1.7.3
 	github.com/jackc/pgx v3.6.0+incompatible
