@@ -29,14 +29,16 @@ var DefaultErrorInvalidDatetime = &ErrorInvalidDatetime{
 // Event structure for work inside http package
 // Clean architecture approach - not working with inner biz logic layer directly
 type Event struct {
-	Id    int    `json:",omitempty"`
-	Name  string `json:"name"`
-	Start string `json:"start"` // Y-m-d H:i
-	End   string `json:"end"`   // Y-m-d H:i
+	Id                 int    `json:"id,omitempty"`
+	Name               string `json:"name"`
+	Start              string `json:"start"` // Y-m-d H:i
+	End                string `json:"end"`   // Y-m-d H:i
+	IsNotifyingEnabled bool   `json:"isNotifyingEnabled,omitempty"`
+	BeforeMinutes      int    `json:"beforeMinutes,omitempty"`
 }
 
 // Constructor
-func NewEvent(name, start, end string) (*Event, error) {
+func NewEvent(name, start, end string, isNotifyingEnabled bool, beforeMinutes int) (*Event, error) {
 	_, err := time.Parse(dateTimeLayout, start)
 	if err != nil {
 		return nil, DefaultErrorInvalidDatetime
@@ -48,9 +50,11 @@ func NewEvent(name, start, end string) (*Event, error) {
 	}
 
 	event := &Event{
-		Name:  name,
-		Start: start,
-		End:   end,
+		Name:               name,
+		Start:              start,
+		End:                end,
+		IsNotifyingEnabled: isNotifyingEnabled,
+		BeforeMinutes:      beforeMinutes,
 	}
 
 	return event, nil
@@ -59,10 +63,12 @@ func NewEvent(name, start, end string) (*Event, error) {
 // Convert from inner Event entity (entities.Event) to http.Event
 func ConvertFromCalendarEvent(calendarEvent entities.Event) *Event {
 	event := &Event{
-		Id:    calendarEvent.Id(),
-		Name:  calendarEvent.Name(),
-		Start: calendarEvent.Start().Format(dateTimeLayout),
-		End:   calendarEvent.End().Format(dateTimeLayout),
+		Id:                 calendarEvent.Id(),
+		Name:               calendarEvent.Name(),
+		Start:              calendarEvent.Start().Format(dateTimeLayout),
+		End:                calendarEvent.End().Format(dateTimeLayout),
+		IsNotifyingEnabled: calendarEvent.IsNotifyingEnabled(),
+		BeforeMinutes:      calendarEvent.BeforeMinutes(),
 	}
 	return event
 }
@@ -86,7 +92,16 @@ func (event *Event) ConvertToCalendarEvent() (*entities.Event, error) {
 		}
 	}
 
-	calendarEvent := entities.NewEvent(event.Name, entities.ConvertFromTime(startTime), entities.ConvertFromTime(endTime))
+	calendarEvent := entities.NewDetailedEvent(
+		event.Name,
+		entities.ConvertFromTime(startTime),
+		entities.ConvertFromTime(endTime),
+		event.IsNotifyingEnabled,
+		event.BeforeMinutes,
+		false,
+		time.Time{},
+	)
+
 	return &calendarEvent, nil
 }
 

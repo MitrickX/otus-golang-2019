@@ -20,6 +20,7 @@ func TestCreateEventOK(t *testing.T) {
 	data.Set("name", "Do homework")
 	data.Set("start", "2019-10-15 20:00")
 	data.Set("end", "2019-10-15 22:00")
+	data.Set("beforeMinutes", "10")
 	body := strings.NewReader(data.Encode())
 
 	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
@@ -64,8 +65,28 @@ func TestCreateEventOK(t *testing.T) {
 
 	if service.Calendar.getEventsTotalCount() != 1 {
 		t.Errorf("unexpected count of events in entities, must be 1 instead of %d", service.Calendar.getEventsTotalCount())
+		return
 	}
 
+	event, ok := service.Calendar.GetEvent(id)
+
+	if !ok {
+		t.Error("Expected event be present in calendar")
+		return
+	}
+
+	expectedEvent := Event{
+		Id:                 id,
+		Name:               "Do homework",
+		Start:              "2019-10-15 20:00",
+		End:                "2019-10-15 22:00",
+		IsNotifyingEnabled: true,
+		BeforeMinutes:      10,
+	}
+
+	if *event != expectedEvent {
+		t.Errorf("Expected\n`%+v`\ngot\n`%+v`", expectedEvent, *event)
+	}
 }
 
 func TestCreateEventInvalidDate(t *testing.T) {
@@ -126,9 +147,11 @@ func TestUpdateEventOK(t *testing.T) {
 	}
 
 	event2 := &Event{
-		Name:  "Watch movie",
-		Start: "2019-10-15 22:00",
-		End:   "2019-10-16 01:00",
+		Name:               "Watch movie",
+		Start:              "2019-10-15 22:00",
+		End:                "2019-10-16 01:00",
+		IsNotifyingEnabled: true,
+		BeforeMinutes:      5,
 	}
 
 	data := url.Values{}
@@ -136,6 +159,8 @@ func TestUpdateEventOK(t *testing.T) {
 	data.Set("name", event2.Name)
 	data.Set("start", event2.Start)
 	data.Set("end", event2.End)
+	data.Set("beforeMinutes", strconv.Itoa(event2.BeforeMinutes))
+
 	body := strings.NewReader(data.Encode())
 
 	req := httptest.NewRequest("POST", "http://test.com/create_event", body)
@@ -173,8 +198,10 @@ func TestUpdateEventOK(t *testing.T) {
 		return
 	}
 
-	if event.Name != "Watch movie" || event.Start != "2019-10-15 22:00" || event.End != "2019-10-16 01:00" {
-		t.Errorf("\nevent info not updated\nexpected be:\n%+v\ngot:\n%+v\n", event2, event)
+	expectedEvent := *event2
+	expectedEvent.Id = id
+	if expectedEvent != *event {
+		t.Errorf("\nevent info not updated\nexpected be:\n%#v\ngot:\n%#v\n", expectedEvent, event)
 	}
 
 }

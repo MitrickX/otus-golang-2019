@@ -7,14 +7,14 @@ import (
 
 // Simplest event struct, not support all day and repeat properties
 type Event struct {
-	id                int       // id of event, need for identify event in entities
-	name              string    // name of event
-	start             DateTime  // start event time
-	end               DateTime  // end event time
-	isNotifyingEnable bool      // need or not isNotifyingEnable
-	beforeMinutes     int       // isNotifyingEnable before minutes
-	isNotified        bool      // was notification enqueued
-	notifiedTime      time.Time // when notification enqueued
+	id                 int       // id of event, need for identify event in entities
+	name               string    // name of event
+	start              DateTime  // start event time
+	end                DateTime  // end event time
+	isNotifyingEnabled bool      // need or not isNotifyingEnabled
+	beforeMinutes      int       // isNotifyingEnabled before minutes
+	isNotified         bool      // was notification enqueued
+	notifiedTime       time.Time // when notification enqueued
 }
 
 // Constructor
@@ -56,13 +56,13 @@ func NewDetailedEvent(
 ) Event {
 
 	return Event{
-		name:              name,
-		start:             start,
-		end:               end,
-		isNotifyingEnable: isNotifyingEnable,
-		beforeMinutes:     beforeMinutes,
-		isNotified:        isNotified,
-		notifiedTime:      notifiedTime,
+		name:               name,
+		start:              start,
+		end:                end,
+		isNotifyingEnabled: isNotifyingEnable,
+		beforeMinutes:      beforeMinutes,
+		isNotified:         isNotified,
+		notifiedTime:       notifiedTime,
 	}
 }
 
@@ -79,14 +79,14 @@ func NewDetailedEventWithId(
 ) Event {
 
 	return Event{
-		id:                id,
-		name:              name,
-		start:             start,
-		end:               end,
-		isNotifyingEnable: isNotifyingEnable,
-		beforeMinutes:     beforeMinutes,
-		isNotified:        isNotified,
-		notifiedTime:      notifiedTime,
+		id:                 id,
+		name:               name,
+		start:              start,
+		end:                end,
+		isNotifyingEnabled: isNotifyingEnable,
+		beforeMinutes:      beforeMinutes,
+		isNotified:         isNotified,
+		notifiedTime:       notifiedTime,
 	}
 }
 
@@ -112,7 +112,7 @@ func (event Event) End() DateTime {
 
 //
 func (event Event) IsNotifyingEnabled() bool {
-	return event.isNotifyingEnable
+	return event.isNotifyingEnabled
 }
 
 //

@@ -97,7 +97,16 @@ func RunService(port string, storage entities.Storage, logger *zap.SugaredLogger
 func (service *Service) CreatEvent(w http.ResponseWriter, r *http.Request) {
 	service.parseForm(r)
 
-	event, err := NewEvent(r.Form.Get("name"), r.Form.Get("start"), r.Form.Get("end"))
+	isNotifyingEnabled, beforeMinutes := parseBeforeMinutesParameter(r)
+
+	event, err := NewEvent(
+		r.Form.Get("name"),
+		r.Form.Get("start"),
+		r.Form.Get("end"),
+		isNotifyingEnabled,
+		beforeMinutes,
+	)
+
 	if err != nil {
 		service.writeErrorResponse(w, err.Error(), 400)
 		return
@@ -123,7 +132,16 @@ func (service *Service) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := NewEvent(r.Form.Get("name"), r.Form.Get("start"), r.Form.Get("end"))
+	isNotifyingEnabled, beforeMinutes := parseBeforeMinutesParameter(r)
+
+	event, err := NewEvent(
+		r.Form.Get("name"),
+		r.Form.Get("start"),
+		r.Form.Get("end"),
+		isNotifyingEnabled,
+		beforeMinutes,
+	)
+
 	if err != nil {
 		service.writeErrorResponse(w, err.Error(), 400)
 		return
@@ -290,4 +308,22 @@ func (service *Service) writeEventListResponse(w http.ResponseWriter, evens []*E
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+}
+
+func parseBeforeMinutesParameter(r *http.Request) (bool, int) {
+
+	beforeMinutesStr := r.Form.Get("beforeMinutes")
+
+	beforeMinutes := 0
+	isNotifyingEnabled := false
+
+	if beforeMinutesStr != "" {
+		val, err := strconv.Atoi(beforeMinutesStr)
+		if err == nil {
+			beforeMinutes = val
+			isNotifyingEnabled = true
+		}
+	}
+
+	return isNotifyingEnabled, beforeMinutes
 }

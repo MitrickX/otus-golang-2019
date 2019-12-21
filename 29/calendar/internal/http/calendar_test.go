@@ -13,7 +13,7 @@ func TestNewCalendar(t *testing.T) {
 	}
 }
 
-func TestAddEvent(t *testing.T) {
+func TestAddEvent1(t *testing.T) {
 	service := NewTestCalendar()
 
 	if service.getEventsTotalCount() > 0 {
@@ -43,7 +43,41 @@ func TestAddEvent(t *testing.T) {
 	}
 }
 
-func TestUpdateEvent(t *testing.T) {
+func TestAddEvent2(t *testing.T) {
+	service := NewTestCalendar()
+
+	if service.getEventsTotalCount() > 0 {
+		t.Error("new entities service must not has events")
+	}
+
+	event1 := &Event{
+		Name:               "Do homework",
+		Start:              "2019-10-15 20:00",
+		End:                "2019-10-15 22:00",
+		IsNotifyingEnabled: true,
+		BeforeMinutes:      7,
+	}
+
+	id := addEvent(t, service, event1, 1)
+	if id <= 0 {
+		return
+	}
+
+	event2 := &Event{
+		Name:               "Watch movie",
+		Start:              "2019-10-15 22:00",
+		End:                "2019-10-16 01:00",
+		IsNotifyingEnabled: true,
+		BeforeMinutes:      10,
+	}
+
+	id = addEvent(t, service, event2, 2)
+	if id <= 0 {
+		return
+	}
+}
+
+func TestUpdateEvent1(t *testing.T) {
 	service := NewTestCalendar()
 
 	event1 := &Event{
@@ -77,6 +111,60 @@ func TestUpdateEvent(t *testing.T) {
 	}
 
 	if event.Name != "Watch movie" || event.Start != "2019-10-15 22:00" || event.End != "2019-10-16 01:00" {
+		t.Errorf("\nevent info not updated\nexpected be:\n%+v\ngot:\n%+v\n", event2, event)
+	}
+
+	err = service.UpdateEvent(0, &Event{})
+	if err == nil {
+		t.Error("update by id = 0 must return error")
+	}
+
+	err = service.UpdateEvent(1000, &Event{})
+	if err == nil {
+		t.Error("update by id of not existed event must return error")
+	}
+}
+
+func TestUpdateEvent2(t *testing.T) {
+	service := NewTestCalendar()
+
+	event1 := &Event{
+		Name:  "Do homework",
+		Start: "2019-10-15 20:00",
+		End:   "2019-10-15 22:00",
+	}
+
+	id := addEvent(t, service, event1, 1)
+	if id <= 0 {
+		return
+	}
+
+	event2 := &Event{
+		Name:               "Watch movie",
+		Start:              "2019-10-15 22:00",
+		End:                "2019-10-16 01:00",
+		IsNotifyingEnabled: true,
+		BeforeMinutes:      10,
+	}
+
+	err := service.UpdateEvent(id, event2)
+
+	if err != nil {
+		t.Errorf("must not be happened error on update: %s\n", err)
+		return
+	}
+
+	event, found := service.GetEvent(id)
+	if !found {
+		t.Errorf("event with id = %d not found on entities service", id)
+		return
+	}
+
+	if event.Name != "Watch movie" ||
+		event.Start != "2019-10-15 22:00" ||
+		event.End != "2019-10-16 01:00" ||
+		!event.IsNotifyingEnabled ||
+		event.BeforeMinutes != 10 {
 		t.Errorf("\nevent info not updated\nexpected be:\n%+v\ngot:\n%+v\n", event2, event)
 	}
 
