@@ -277,7 +277,9 @@ func (service *Service) writeErrorResponse(w http.ResponseWriter, result string,
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
+
 	_, writeErr := w.Write(data)
 	if writeErr != nil && service.logger != nil {
 		service.logger.Errorf("Service.writeErrorResponse, write `OkResponse` error %s", err)
@@ -301,7 +303,9 @@ func (service *Service) writeEventListResponse(w http.ResponseWriter, evens []*E
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
+
 	_, writeErr := w.Write(data)
 	if writeErr != nil && service.logger != nil {
 		service.logger.Errorf("Service.writeEventListResponse, write `EventListResponse` error %s", err)

@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+const layout = "02 Jan 2006 15:04"
+
 // Time of event - wrapper on time.Time but more simple constructor
 type DateTime struct {
 	t time.Time
@@ -35,7 +37,7 @@ func (eventTime DateTime) LessOrEqual(thatEventTime DateTime) bool {
 
 // String representation of event time
 func (eventTime DateTime) String() string {
-	return eventTime.t.Format("02 Jan 2006 15:04")
+	return eventTime.t.Format(layout)
 }
 
 // Formatting

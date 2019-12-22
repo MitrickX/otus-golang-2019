@@ -115,7 +115,7 @@ func NewStorage(cfg Config) (*Storage, error) {
 		time.Sleep(time.Second)
 	}
 	if connectErr != nil {
-		return nil, fmt.Errorf("failed to connect to db: %w", err)
+		return nil, fmt.Errorf("failed to connect to db: %w", connectErr)
 	}
 
 	return &Storage{
