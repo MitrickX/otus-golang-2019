@@ -10,6 +10,7 @@ import (
 
 	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
+	serviceHttp "github.com/mitrickx/otus-golang-2019/29/calendar/internal/http"
 )
 
 // In this file bunch of helpers for tests module
@@ -18,6 +19,7 @@ const (
 	dateTimeLayout      = "2006-01-02 15:04:05"
 	dateTimeShortLayout = "2006-01-02 15:04"
 	dateLayout          = "2006-01-02"
+	timeLayout          = "15:04:05"
 )
 
 // Convert table data to events
@@ -69,8 +71,10 @@ func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, err
 				eventId, err = strconv.Atoi(cellValue)
 				if err != nil {
 					return nil, fmt.Errorf(
-						"conver from gherkin table failed, can't cast cell (%d, `%s`) to int", rowIndex,
+						"conver from gherkin table failed, can't cast cell (%d, `%s`, `%s`) to int: %s", rowIndex,
 						columnName,
+						cellValue,
+						err,
 					)
 				}
 			case "name":
@@ -79,9 +83,11 @@ func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, err
 				t, err := parseStrToTime(cellValue)
 				if err != nil {
 					return nil, fmt.Errorf(
-						"conver from gherkin table failed, can't cast cell (%d, `%s`) to entities.DateTime",
+						"conver from gherkin table failed, can't cast cell (%d, `%s`, `%s`) to entities.DateTime: %s",
 						rowIndex,
 						columnName,
+						cellValue,
+						err,
 					)
 				}
 				start = entities.ConvertFromTime(t)
@@ -89,9 +95,11 @@ func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, err
 				t, err := parseStrToTime(cellValue)
 				if err != nil {
 					return nil, fmt.Errorf(
-						"conver from gherkin table failed, can't cast cell (%d, `%s`) to entities.DateTime",
+						"conver from gherkin table failed, can't cast cell (%d, `%s`, `%s`) to entities.DateTime: %s",
 						rowIndex,
 						columnName,
+						cellValue,
+						err,
 					)
 				}
 				end = entities.ConvertFromTime(t)
@@ -101,9 +109,11 @@ func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, err
 					beforeMinutes, err = strconv.Atoi(cellValue)
 					if err != nil {
 						return nil, fmt.Errorf(
-							"conver from gherkin table failed, can't cast cell (%d, `%s`) to int",
+							"conver from gherkin table failed, can't cast cell (%d, `%s`, `%s`) to int: %s",
 							rowIndex,
 							"before_minutes",
+							cellValue,
+							err,
 						)
 					}
 				}
@@ -113,9 +123,11 @@ func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, err
 					notifiedTime, err = parseStrToTime(cellValue)
 					if err != nil {
 						return nil, fmt.Errorf(
-							"conver from gherkin table failed, can't cast cell (%d, `%s`) to entities.DateTime",
+							"conver from gherkin table failed, can't cast cell (%d, `%s`, `%s`) to entities.DateTime: %s",
 							rowIndex,
 							"notified_time",
+							cellValue,
+							err,
 						)
 					}
 				}
@@ -140,6 +152,38 @@ func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, err
 
 // parse string representation of date time into time.Time
 func parseStrToTime(str string) (time.Time, error) {
+	t, err := parseStrToTimeByLayouts(str)
+	if err == nil {
+		return t, err
+	}
+
+	// Y-m-d H:i:s - it is now time
+	nowTime := time.Now()
+	dateStr := nowTime.Format(dateLayout)
+	timeStr := nowTime.Format(timeLayout)
+	dateParts := strings.Split(dateStr, "-")
+	timeParts := strings.Split(timeStr, ":")
+	if len(dateParts) < 3 {
+		return time.Time{}, fmt.Errorf("error when parse now time, date component is `%s`", dateStr)
+	}
+	if len(timeParts) < 3 {
+		return time.Time{}, fmt.Errorf("error when parse now time, time component is `%s`", timeStr)
+	}
+	replacePairs := []string{
+		"Y", dateParts[0],
+		"m", dateParts[1],
+		"d", dateParts[2],
+		"H", timeParts[0],
+		"i", timeParts[1],
+		"s", timeParts[2],
+	}
+	replacer := strings.NewReplacer(replacePairs...)
+	str = replacer.Replace(str)
+
+	return parseStrToTimeByLayouts(str)
+}
+
+func parseStrToTimeByLayouts(str string) (time.Time, error) {
 	var t time.Time
 	var err error
 	t, err = time.Parse(dateTimeLayout, str)
@@ -186,4 +230,18 @@ func jsonUnmarshalToMap(data string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("json unmarshal error %s", err)
 	}
 	return result, nil
+}
+
+func jsonUnmarshalEventListResponse(data string) (serviceHttp.EventListResponse, error) {
+	var result serviceHttp.EventListResponse
+	err := json.Unmarshal([]byte(data), &result)
+	if err != nil {
+		return serviceHttp.EventListResponse{}, fmt.Errorf("json unmarshal error %s", err)
+	}
+	return result, nil
+}
+
+func jsonMarshalEventListResponse(response serviceHttp.EventListResponse) string {
+	data, _ := json.Marshal(response)
+	return string(data)
 }

@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	httpService "github.com/mitrickx/otus-golang-2019/29/calendar/internal/http"
+
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
@@ -23,6 +25,7 @@ type featureTest struct {
 	subMatchResult []string // result of regexp sub-match searching
 	eventId        int      // id of event to deal with in next step(s)
 	eventIds       []int    // id of events to deal with in next step(s)
+	vars           map[string]interface{}
 }
 
 func newFeatureTest() *featureTest {
@@ -134,6 +137,7 @@ func (t *featureTest) theRecordShouldMatch(eventsData *gherkin.DataTable) error 
 }
 
 func (t *featureTest) existingRecords(eventsData *gherkin.DataTable) error {
+
 	events, err := convertGherkinTableToEvents(eventsData)
 	if err != nil {
 		return err
@@ -166,7 +170,7 @@ func (t *featureTest) theRecordsShouldMatch(eventsData *gherkin.DataTable) error
 		expectedEvent := entities.WithId(event, dbEventId)
 		dbEvent, err := config.DbStorage.GetEvent(dbEventId)
 		if err != nil {
-			return fmt.Errorf("error when get event from db `%s`", err)
+			return fmt.Errorf("error when get event by id %d from db `%s`", dbEventId, err)
 		}
 		if expectedEvent != dbEvent {
 			err := fmt.Sprintf("expected event\n%#v\ninstread of event\n%#v", expectedEvent, dbEvent)
@@ -207,6 +211,7 @@ func (t *featureTest) theDBShouldBeClean() error {
 func (t *featureTest) theResponseJsonShouldMatch(data *gherkin.DocString) error {
 	replacer := strings.NewReplacer("\n", "", "\t", "")
 	expectedData := replacer.Replace(data.Content)
+	strings.Contains(expectedData, "")
 	expectedDataJson, err := jsonUnmarshalToMap(expectedData)
 	if err != nil {
 		return err
@@ -218,6 +223,48 @@ func (t *featureTest) theResponseJsonShouldMatch(data *gherkin.DocString) error 
 	if !reflect.DeepEqual(expectedDataJson, responseDataJson) {
 		return fmt.Errorf("expected:\n`%#v`\ninstead of:\n`%#v`", expectedDataJson, responseDataJson)
 	}
+	return nil
+}
+
+func (t *featureTest) theResponseJsonIsEventListResponseFilledWithEventsOfIds(ids string) error {
+	eventListResponse, err := jsonUnmarshalEventListResponse(t.responseBody)
+	if err != nil {
+		return err
+	}
+
+	parts := strings.Split(ids, ",")
+	var eventIds []int
+	for _, part := range parts {
+		intVal, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil {
+			return fmt.Errorf("parse ids failed when atoi token `%s`", part)
+		}
+		eventIds = append(eventIds, intVal)
+	}
+
+	if len(eventIds) <= 0 {
+		return fmt.Errorf("unexpected empty event ids list after parse ids `%s`", ids)
+	}
+
+	config := GetTestConfig()
+
+	expectedEventListResponse := httpService.EventListResponse{}
+	for _, eventId := range eventIds {
+		event, err := config.DbStorage.GetEvent(eventId)
+		if err != nil {
+			return fmt.Errorf("error when get event by id %d from db `%s`", eventId, err)
+		}
+		httpServiceEvent := httpService.ConvertFromCalendarEvent(event)
+		expectedEventListResponse.Result = append(expectedEventListResponse.Result, httpServiceEvent)
+	}
+
+	if !reflect.DeepEqual(expectedEventListResponse, eventListResponse) {
+		return fmt.Errorf("expected reponse\n%s\n instead of\n%s\n",
+			jsonMarshalEventListResponse(expectedEventListResponse),
+			jsonMarshalEventListResponse(eventListResponse),
+		)
+	}
+
 	return nil
 }
 
@@ -234,5 +281,6 @@ func FeatureContext(s *godog.Suite, t *featureTest) {
 	s.Step(`^The records should match:$`, t.theRecordsShouldMatch)
 	s.Step(`^The response json should match:$`, t.theResponseJsonShouldMatch)
 	s.Step(`^The DB should be clean$`, t.theDBShouldBeClean)
+	s.Step(`^The response json is EventListResponse filled with events of ids "([^"]*)"$`, t.theResponseJsonIsEventListResponseFilledWithEventsOfIds)
 
 }
