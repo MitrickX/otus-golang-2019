@@ -6,7 +6,6 @@ import (
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -22,7 +21,7 @@ const (
 )
 
 // Convert table data to events
-func convertGherkinTableEvents(data *gherkin.DataTable) ([]entities.Event, error) {
+func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, error) {
 
 	if len(data.Rows) <= 1 {
 		return nil, nil
@@ -170,21 +169,23 @@ func assertContentType(r *http.Response, contentType string) error {
 	return nil
 }
 
-// Treat response body as json and convert it to map[string]string
-func readStringToStringMapFromJsonBody(r *http.Response) (map[string]string, error) {
-	var err error
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	jsonResponse := make(map[string]string)
-	err = json.Unmarshal(body, &jsonResponse)
+func jsonUnmarshalStringToStringMap(data string) (map[string]string, error) {
+	result := make(map[string]string)
+	err := json.Unmarshal([]byte(data), &result)
 	if err != nil {
 		return nil, fmt.Errorf("json unmarshal error %s", err)
 	}
 
-	return jsonResponse, nil
+	return result, nil
+}
+
+func jsonUnmarshalToMap(data string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := json.Unmarshal([]byte(data), &result)
+	if err != nil {
+		return nil, fmt.Errorf("json unmarshal error %s", err)
+	}
+	return result, nil
 }
 
 // Test entry point

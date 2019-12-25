@@ -289,6 +289,11 @@ func (service *Service) writeErrorResponse(w http.ResponseWriter, result string,
 // inner helper for write ok json response with list of events
 func (service *Service) writeEventListResponse(w http.ResponseWriter, evens []*Event, code int) {
 	response := &EventListResponse{evens}
+
+	if response.Result == nil {
+		response.Result = make([]*Event, 0, 0) // empty slice must always covert to [] (empty array)
+	}
+
 	data, err := json.Marshal(response)
 
 	if err != nil {

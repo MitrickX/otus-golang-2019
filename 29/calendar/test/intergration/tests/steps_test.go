@@ -7,8 +7,10 @@ import (
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,27 +18,46 @@ import (
 
 type featureTest struct {
 	r              *http.Response // http response
-	subMatchResult []string       // result of regexp sub-match searching
-	eventId        int            // id of event to deal with in next step(s)
-	eventIds       []int          // id of events to deal with in next step(s)
+	responseBody   string
+	subMatchResult []string // result of regexp sub-match searching
+	eventId        int      // id of event to deal with in next step(s)
+	eventIds       []int    // id of events to deal with in next step(s)
 }
 
 func newFeatureTest() *featureTest {
 	return new(featureTest)
 }
 
-func (t *featureTest) iSendPOSTRequestToWithParams(addr, contentType string, data *gherkin.DocString) error {
+func (t *featureTest) iSendRequestToWithParams(method, addr, contentType string, data *gherkin.DocString) error {
 	var err error
 	replacer := strings.NewReplacer("\n", "", "\t", "")
 	query := replacer.Replace(data.Content)
 
-	log.Printf("Send POST data `%s` of content type `%s` to addr `%s`", query, contentType, addr)
+	log.Printf("Send %s request with data `%s` of content type `%s` to addr `%s`", method, query, contentType, addr)
 
-	t.r, err = http.Post(addr, contentType, bytes.NewReader([]byte(query)))
+	req, err := http.NewRequest(method, addr, bytes.NewReader([]byte(query)))
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", contentType)
+
+	t.r, err = http.DefaultClient.Do(req)
+
+	body, err := ioutil.ReadAll(t.r.Body)
+	if err != nil {
+		return err
+	}
+
+	t.responseBody = string(body)
+
 	return nil
+}
+
+func (t *featureTest) iSendRequestTo(method, addr string) error {
+	data := &gherkin.DocString{
+		Content: "",
+	}
+	return t.iSendRequestToWithParams(method, addr, "application/x-www-form-urlencoded", data)
 }
 
 func (t *featureTest) theResponseCodeShouldBe(code int) error {
@@ -48,7 +69,7 @@ func (t *featureTest) theResponseContentTypeShouldBe(contentType string) error {
 }
 
 func (t *featureTest) theResponseJsonShouldHasFieldWithValueMatch(field, pattern string) error {
-	jsonResponse, err := readStringToStringMapFromJsonBody(t.r)
+	jsonResponse, err := jsonUnmarshalStringToStringMap(t.responseBody)
 	if err != nil {
 		return err
 	}
@@ -88,7 +109,7 @@ func (t *featureTest) extractedNumberIsEventId() error {
 }
 
 func (t *featureTest) theRecordShouldMatch(eventsData *gherkin.DataTable) error {
-	events, err := convertGherkinTableEvents(eventsData)
+	events, err := convertGherkinTableToEvents(eventsData)
 	if err != nil {
 		return err
 	}
@@ -112,7 +133,7 @@ func (t *featureTest) theRecordShouldMatch(eventsData *gherkin.DataTable) error 
 }
 
 func (t *featureTest) existingRecords(eventsData *gherkin.DataTable) error {
-	events, err := convertGherkinTableEvents(eventsData)
+	events, err := convertGherkinTableToEvents(eventsData)
 	if err != nil {
 		return err
 	}
@@ -130,7 +151,7 @@ func (t *featureTest) existingRecords(eventsData *gherkin.DataTable) error {
 }
 
 func (t *featureTest) theRecordsShouldMatch(eventsData *gherkin.DataTable) error {
-	expectedEvents, err := convertGherkinTableEvents(eventsData)
+	expectedEvents, err := convertGherkinTableToEvents(eventsData)
 	if err != nil {
 		return err
 	}
@@ -182,8 +203,26 @@ func (t *featureTest) theDBShouldBeClean() error {
 	return nil
 }
 
+func (t *featureTest) theResponseJsonShouldMatch(data *gherkin.DocString) error {
+	replacer := strings.NewReplacer("\n", "", "\t", "")
+	expectedData := replacer.Replace(data.Content)
+	expectedDataJson, err := jsonUnmarshalToMap(expectedData)
+	if err != nil {
+		return err
+	}
+	responseDataJson, err := jsonUnmarshalToMap(t.responseBody)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(expectedDataJson, responseDataJson) {
+		return fmt.Errorf("expected:\n`%#v`\ninstead of:\n`%#v`", expectedDataJson, responseDataJson)
+	}
+	return nil
+}
+
 func FeatureContext(s *godog.Suite, t *featureTest) {
-	s.Step(`^I send POST request to "([^"]*)" with "([^"]*)" params:$`, t.iSendPOSTRequestToWithParams)
+	s.Step(`^I send "([^"]*)" request to "([^"]*)" with "([^"]*)" params:$`, t.iSendRequestToWithParams)
+	s.Step(`^I send "([^"]*)" request to "([^"]*)"$`, t.iSendRequestTo)
 	s.Step(`^The response code should be (\d+)$`, t.theResponseCodeShouldBe)
 	s.Step(`^The response contentType should be "([^"]*)"$`, t.theResponseContentTypeShouldBe)
 	s.Step(`^The response json should has field "([^"]*)" with value match "([^"]*)"$`, t.theResponseJsonShouldHasFieldWithValueMatch)
@@ -192,5 +231,7 @@ func FeatureContext(s *godog.Suite, t *featureTest) {
 	s.Step(`^Clean DB$`, t.cleanDB)
 	s.Step(`^Existing records:$`, t.existingRecords)
 	s.Step(`^The records should match:$`, t.theRecordsShouldMatch)
+	s.Step(`^The response json should match:$`, t.theResponseJsonShouldMatch)
 	s.Step(`^The DB should be clean$`, t.theDBShouldBeClean)
+
 }
