@@ -169,6 +169,26 @@ func parseStrToTime(str string) (time.Time, error) {
 	if len(timeParts) < 3 {
 		return time.Time{}, fmt.Errorf("error when parse now time, time component is `%s`", timeStr)
 	}
+
+	weekDay := nowTime.Weekday()
+	shiftDay := weekDay - 1
+
+	monTime := nowTime.Add(-24 * time.Duration(shiftDay) * time.Hour)
+	tueTime := monTime.Add(24 * time.Hour)
+	wedTime := tueTime.Add(24 * time.Hour)
+	thuTime := wedTime.Add(24 * time.Hour)
+	friTime := thuTime.Add(24 * time.Hour)
+	satTime := friTime.Add(24 * time.Hour)
+	sunTime := satTime.Add(24 * time.Hour)
+
+	monStr := monTime.Format(dateLayout)
+	tueStr := tueTime.Format(dateLayout)
+	wedStr := wedTime.Format(dateLayout)
+	thuStr := thuTime.Format(dateLayout)
+	friStr := friTime.Format(dateLayout)
+	satStr := satTime.Format(dateLayout)
+	sunStr := sunTime.Format(dateLayout)
+
 	replacePairs := []string{
 		"Y", dateParts[0],
 		"m", dateParts[1],
@@ -176,7 +196,15 @@ func parseStrToTime(str string) (time.Time, error) {
 		"H", timeParts[0],
 		"i", timeParts[1],
 		"s", timeParts[2],
+		"Mon", monStr,
+		"Tue", tueStr,
+		"Wed", wedStr,
+		"Thu", thuStr,
+		"Fri", friStr,
+		"Sat", satStr,
+		"Sun", sunStr,
 	}
+
 	replacer := strings.NewReplacer(replacePairs...)
 	str = replacer.Replace(str)
 
