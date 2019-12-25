@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/DATA-DOG/godog"
-	"github.com/DATA-DOG/godog/gherkin"
-	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,6 +11,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/DATA-DOG/godog"
+	"github.com/DATA-DOG/godog/gherkin"
+	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
 )
 
 type featureTest struct {

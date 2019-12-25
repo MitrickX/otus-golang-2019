@@ -3,16 +3,16 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/DATA-DOG/godog"
-	"github.com/DATA-DOG/godog/gherkin"
-	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
+
+	"github.com/DATA-DOG/godog/gherkin"
+	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
 )
+
+// In this file bunch of helpers for tests module
 
 const (
 	dateTimeLayout      = "2006-01-02 15:04:05"
@@ -186,23 +186,4 @@ func jsonUnmarshalToMap(data string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("json unmarshal error %s", err)
 	}
 	return result, nil
-}
-
-// Test entry point
-func TestMain(m *testing.M) {
-
-	status := godog.RunWithOptions("integration", func(s *godog.Suite) {
-		t := newFeatureTest()
-		FeatureContext(s, t)
-	}, godog.Options{
-		Format:    "pretty", // progress, pretty
-		Paths:     []string{"../features"},
-		Randomize: 0,
-	})
-
-	if st := m.Run(); st > status {
-		status = st
-	}
-
-	os.Exit(status)
 }

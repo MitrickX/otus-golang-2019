@@ -1,12 +1,13 @@
 package tests
 
 import (
+	"log"
+
 	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/storage/sql"
 	"github.com/spf13/viper"
-	"log"
 )
 
-const cfgFilePath = "../../../configs/config.yaml"
+const cfgFilePath = "../../../../configs/config.yaml"
 
 type IntegrationTestsConfig struct {
 	DbStorage *sql.Storage
