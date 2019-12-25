@@ -158,6 +158,8 @@ func parseStrToTime(str string) (time.Time, error) {
 	}
 
 	// Y-m-d H:i:s - it is now time
+	// Mon, Tue, Wed, Thu, Fri, Sat, Sun - day of current week
+	// ld - last day of month
 	nowTime := time.Now()
 	dateStr := nowTime.Format(dateLayout)
 	timeStr := nowTime.Format(timeLayout)
@@ -189,6 +191,22 @@ func parseStrToTime(str string) (time.Time, error) {
 	satStr := satTime.Format(dateLayout)
 	sunStr := sunTime.Format(dateLayout)
 
+	ld := "31"
+	switch nowTime.Month() {
+	case time.January, time.March, time.May, time.July, time.August, time.October, time.December:
+		ld = "31"
+	case time.April, time.June, time.September, time.November:
+		ld = "30"
+	default:
+		year := nowTime.Year()
+		isLeap := year%4 == 0 && (year%100 != 0 || year%400 == 0)
+		if isLeap {
+			ld = "29"
+		} else {
+			ld = "28"
+		}
+	}
+
 	replacePairs := []string{
 		"Y", dateParts[0],
 		"m", dateParts[1],
@@ -203,6 +221,7 @@ func parseStrToTime(str string) (time.Time, error) {
 		"Fri", friStr,
 		"Sat", satStr,
 		"Sun", sunStr,
+		"ld", ld,
 	}
 
 	replacer := strings.NewReplacer(replacePairs...)
