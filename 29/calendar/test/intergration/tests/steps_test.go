@@ -30,9 +30,6 @@ func (t *featureTest) iSendPOSTRequestToWithParams(addr, contentType string, dat
 	replacer := strings.NewReplacer("\n", "", "\t", "")
 	query := replacer.Replace(data.Content)
 
-	// here there magic, replace id=\d+ in request by real event id
-	query = replaceIndexToEventId(query, t.eventIds)
-
 	log.Printf("Send POST data `%s` of content type `%s` to addr `%s`", query, contentType, addr)
 
 	t.r, err = http.Post(addr, contentType, bytes.NewReader([]byte(query)))
@@ -122,7 +119,7 @@ func (t *featureTest) existingRecords(eventsData *gherkin.DataTable) error {
 
 	config := GetTestConfig()
 	for _, event := range events {
-		eventId, err := config.DbStorage.AddEvent(event)
+		eventId, err := config.DbStorage.InsertEvent(event)
 		if err != nil {
 			return fmt.Errorf("preparation db, add event into is failed %s", err)
 		}
@@ -164,6 +161,27 @@ func (t *featureTest) theRecordsShouldMatch(eventsData *gherkin.DataTable) error
 
 }
 
+func (t *featureTest) cleanDB() error {
+	config := GetTestConfig()
+	err := config.DbStorage.ClearAll()
+	if err != nil {
+		return fmt.Errorf("cleaning error return error %s", err)
+	}
+	return nil
+}
+
+func (t *featureTest) theDBShouldBeClean() error {
+	config := GetTestConfig()
+	count, err := config.DbStorage.Count()
+	if err != nil {
+		return fmt.Errorf("counting all items cause error `%s`", err)
+	}
+	if count > 0 {
+		return fmt.Errorf("db not clean (number of events is %d)", count)
+	}
+	return nil
+}
+
 func FeatureContext(s *godog.Suite, t *featureTest) {
 	s.Step(`^I send POST request to "([^"]*)" with "([^"]*)" params:$`, t.iSendPOSTRequestToWithParams)
 	s.Step(`^The response code should be (\d+)$`, t.theResponseCodeShouldBe)
@@ -171,6 +189,8 @@ func FeatureContext(s *godog.Suite, t *featureTest) {
 	s.Step(`^The response json should has field "([^"]*)" with value match "([^"]*)"$`, t.theResponseJsonShouldHasFieldWithValueMatch)
 	s.Step(`^Extracted number is event id$`, t.extractedNumberIsEventId)
 	s.Step(`^The record should match:$`, t.theRecordShouldMatch)
+	s.Step(`^Clean DB$`, t.cleanDB)
 	s.Step(`^Existing records:$`, t.existingRecords)
 	s.Step(`^The records should match:$`, t.theRecordsShouldMatch)
+	s.Step(`^The DB should be clean$`, t.theDBShouldBeClean)
 }

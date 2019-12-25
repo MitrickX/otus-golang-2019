@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -21,32 +20,6 @@ const (
 	dateTimeShortLayout = "2006-01-02 15:04"
 	dateLayout          = "2006-01-02"
 )
-
-var (
-	indexToIdRegExp = regexp.MustCompile(`id=(\d+)`)
-)
-
-// replace number in id=\d+ by value in eventIds found by that number as index
-// if something wrong return original string
-func replaceIndexToEventId(query string, eventIds []int) string {
-	re := indexToIdRegExp
-	m := re.Match([]byte(query))
-	if !m {
-		return query
-	}
-	sb := re.FindStringSubmatch(query)
-	if len(sb) < 2 {
-		return query
-	}
-	index, err := strconv.Atoi(sb[1])
-	if err != nil {
-		return query
-	}
-	if len(eventIds) <= index {
-		return query
-	}
-	return strings.Replace(query, "id="+sb[1], "id="+strconv.Itoa(eventIds[index]), 1)
-}
 
 // Convert table data to events
 func convertGherkinTableEvents(data *gherkin.DataTable) ([]entities.Event, error) {

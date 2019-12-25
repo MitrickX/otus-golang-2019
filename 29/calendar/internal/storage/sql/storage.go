@@ -330,6 +330,33 @@ func (s *Storage) ClearAll() error {
 	return nil
 }
 
+// Not part of entities.Storage interface, convenient for integration tests, when need to fill data into db
+func (s *Storage) InsertEvent(event entities.Event) (int, error) {
+	query := `INSERT INTO events(id, name, start_time, end_time, before_minutes, notified_time) 
+				VALUES(:id, :name, :start_time, :end_time, :before_minutes, :notified_time)
+				RETURNING id`
+
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+
+	defer cancel()
+
+	eventRow := convertEventToEventRow(event)
+
+	stmt, err := s.db.PrepareNamedContext(ctx, query)
+	if err != nil {
+		return 0, fmt.Errorf("failed to insert event: %w", err)
+	}
+
+	var id int
+	err = stmt.GetContext(ctx, &id, eventRow)
+	if err != nil {
+		return 0, fmt.Errorf("failed to insert event: %w", err)
+	}
+
+	return id, nil
+
+}
+
 func (s *Storage) getEvents(query string, arg interface{}) ([]entities.Event, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
