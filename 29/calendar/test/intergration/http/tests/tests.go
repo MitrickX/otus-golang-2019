@@ -2,8 +2,14 @@ package tests
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"reflect"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +27,9 @@ const (
 	dateLayout          = "2006-01-02"
 	timeLayout          = "15:04:05"
 )
+
+// Compiled regexp for parseAddDuration
+var addDurationRegexp = regexp.MustCompile(`^([+\-])(\d+(?:s|m|h))$`)
 
 // Convert table data to events
 func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, error) {
@@ -150,9 +159,33 @@ func convertGherkinTableToEvents(data *gherkin.DataTable) ([]entities.Event, err
 	return events, nil
 }
 
+// Parse strings like '+10s', '-13m', '+1h' into time.Time
+// Adding applying to now time
+func parseAddDuration(str string) (time.Time, error) {
+	submatch := addDurationRegexp.FindStringSubmatch(str)
+	if len(submatch) <= 0 {
+		return time.Time{}, errors.New("not match")
+	}
+	d, err := time.ParseDuration(submatch[2])
+	if err != nil {
+		return time.Time{}, err
+	}
+	if submatch[1] == "+" {
+		return time.Now().Add(d), nil
+	} else {
+		return time.Now().Add(-d), nil
+	}
+}
+
 // parse string representation of date time into time.Time
 func parseStrToTime(str string) (time.Time, error) {
 	t, err := parseStrToTimeByLayouts(str)
+	if err == nil {
+		return t, err
+	}
+
+	// +someDuration, -someDuration
+	t, err = parseAddDuration(str)
 	if err == nil {
 		return t, err
 	}
@@ -230,6 +263,7 @@ func parseStrToTime(str string) (time.Time, error) {
 	return parseStrToTimeByLayouts(str)
 }
 
+// parse string representation of date time into time.Time by predefined layouts
 func parseStrToTimeByLayouts(str string) (time.Time, error) {
 	var t time.Time
 	var err error
@@ -260,6 +294,36 @@ func assertContentType(r *http.Response, contentType string) error {
 	return nil
 }
 
+// Is 2 int slice equals despite their orders
+func isIntSliceEquals(a []int, b []int) bool {
+	aCloned := append([]int(nil), a...)
+	bCloned := append([]int(nil), b...)
+	sort.Ints(aCloned)
+	sort.Ints(bCloned)
+	return reflect.DeepEqual(aCloned, bCloned)
+}
+
+// Open file for read
+// If ignoreErrExist and file not exist it is not error returned to this case
+// If seekToEnd passed as TRUE seek to end, otherwise not seek at all
+func openFileForRead(filepath string, seekToEnd bool, ignoreErrExist bool) (*os.File, error) {
+
+	file, err := os.OpenFile(filepath, os.O_RDONLY, 0666)
+
+	if err != nil {
+		if err != os.ErrExist || !ignoreErrExist {
+			return nil, err
+		}
+	}
+
+	if file != nil && seekToEnd {
+		_, _ = file.Seek(0, io.SeekEnd)
+	}
+
+	return file, err
+}
+
+// unmarshal json string to string-string map
 func jsonUnmarshalStringToStringMap(data string) (map[string]string, error) {
 	result := make(map[string]string)
 	err := json.Unmarshal([]byte(data), &result)
@@ -270,6 +334,7 @@ func jsonUnmarshalStringToStringMap(data string) (map[string]string, error) {
 	return result, nil
 }
 
+// unmarshal json string to general map (string-empty interface map)
 func jsonUnmarshalToMap(data string) (map[string]interface{}, error) {
 	var result map[string]interface{}
 	err := json.Unmarshal([]byte(data), &result)
@@ -279,6 +344,7 @@ func jsonUnmarshalToMap(data string) (map[string]interface{}, error) {
 	return result, nil
 }
 
+// unmarshal json string to specific type serviceHttp.EventListResponse
 func jsonUnmarshalEventListResponse(data string) (serviceHttp.EventListResponse, error) {
 	var result serviceHttp.EventListResponse
 	err := json.Unmarshal([]byte(data), &result)
@@ -288,7 +354,53 @@ func jsonUnmarshalEventListResponse(data string) (serviceHttp.EventListResponse,
 	return result, nil
 }
 
+// marsha from specific type serviceHttp.EventListResponse to json
 func jsonMarshalEventListResponse(response serviceHttp.EventListResponse) string {
 	data, _ := json.Marshal(response)
 	return string(data)
+}
+
+// read string value from general map
+func readStringValueFromMap(key string, m map[string]interface{}) (string, bool) {
+	value, ok := m[key]
+	if !ok {
+		return "", false
+	}
+	s, ok := value.(string)
+	if !ok {
+		return "", false
+	}
+	return s, true
+}
+
+// read int value from general map
+func readIntValueFromMap(key string, m map[string]interface{}) (int, bool) {
+	value, ok := m[key]
+	if !ok {
+		return 0, false
+	}
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case float64:
+		return int(v), true
+	default:
+		return 0, false
+	}
+}
+
+// Splice string like "1,2,3,4" to []int{1,2,3,4}
+func splitStrIntoIntSlice(str string) ([]int, error) {
+	parts := strings.Split(str, ",")
+	var res []int
+	for _, part := range parts {
+		intVal, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil {
+			return nil, fmt.Errorf("parse string failed when apply atoi to token `%s`", part)
+		}
+		res = append(res, intVal)
+	}
+	return res, nil
 }

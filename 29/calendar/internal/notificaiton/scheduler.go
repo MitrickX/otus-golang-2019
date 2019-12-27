@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/domain/entities"
 	"go.uber.org/zap"
-	"time"
 )
-
 
 var ErrorQueueNotInitialized = errors.New("queue not initialized")
 var ErrorStorageNotInitialized = errors.New("storage not initialized")
@@ -149,6 +149,7 @@ func (s *Scheduler) logErrorf(format string, err error) {
 // print formatted info level message into log
 func (s *Scheduler) logInfof(format string, args ...interface{}) {
 	if s.logger != nil {
+		///tmp/calendar/scheduler/output
 		s.logger.Infof(format, args...)
 	}
 }

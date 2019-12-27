@@ -2,6 +2,7 @@ package tests
 
 import (
 	"log"
+	"os"
 
 	"github.com/mitrickx/otus-golang-2019/29/calendar/internal/storage/sql"
 	"github.com/spf13/viper"
@@ -10,7 +11,8 @@ import (
 const cfgFilePath = "../../../../configs/config.yaml"
 
 type IntegrationTestsConfig struct {
-	DbStorage *sql.Storage
+	DbStorage        *sql.Storage
+	SenderOutputPath string
 }
 
 var testConfig *IntegrationTestsConfig
@@ -33,6 +35,12 @@ func init() {
 	testConfig = &IntegrationTestsConfig{
 		DbStorage: dbStorage,
 	}
+	outputPath := os.Getenv("SENDER_OUTPUT_PATH")
+	if outputPath != "" {
+		testConfig.SenderOutputPath = outputPath
+		log.Printf("Sender output path set to %s\n", outputPath)
+	}
+
 }
 
 func GetTestConfig() *IntegrationTestsConfig {

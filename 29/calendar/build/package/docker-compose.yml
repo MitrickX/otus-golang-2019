@@ -43,6 +43,7 @@ services:
     command: ./calendar --config ./configs/config.yaml scheduler
     volumes: 
       - ../../configs:/root/configs
+      - /tmp/calendar/scheduler:/tmp/calendar
     depends_on:
       - postgres
       - rabbit
@@ -57,6 +58,7 @@ services:
     command: ./calendar --config ./configs/config.yaml sender
     volumes: 
       - ../../configs:/root/configs
+      - /tmp/calendar/sender:/tmp/calendar
     depends_on:
       - postgres
       - rabbit

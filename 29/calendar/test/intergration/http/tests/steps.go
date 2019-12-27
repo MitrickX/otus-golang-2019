@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	httpService "github.com/mitrickx/otus-golang-2019/29/calendar/internal/http"
 
@@ -232,14 +233,9 @@ func (t *featureTest) theResponseJsonIsEventListResponseFilledWithEventsOfIds(id
 		return err
 	}
 
-	parts := strings.Split(ids, ",")
-	var eventIds []int
-	for _, part := range parts {
-		intVal, err := strconv.Atoi(strings.TrimSpace(part))
-		if err != nil {
-			return fmt.Errorf("parse ids failed when atoi token `%s`", part)
-		}
-		eventIds = append(eventIds, intVal)
+	eventIds, err := splitStrIntoIntSlice(ids)
+	if err != nil {
+		return err
 	}
 
 	if len(eventIds) <= 0 {
@@ -268,6 +264,123 @@ func (t *featureTest) theResponseJsonIsEventListResponseFilledWithEventsOfIds(id
 	return nil
 }
 
+func (t *featureTest) iAfterWaitShouldReceiveNotificationAboutEventsOfIds(duration, ids string) error {
+	d, err := time.ParseDuration(duration)
+	if err != nil {
+		return fmt.Errorf("error when parse duration `%s`", err)
+	}
+
+	config := GetTestConfig()
+	if config.SenderOutputPath == "" {
+		return errors.New("sender output path is requried for this test, set SENDER_OUTPUT_PATH env var")
+	}
+
+	file, err := openFileForRead(config.SenderOutputPath, true, true)
+
+	if err != nil {
+		return fmt.Errorf("error when open file %s for read-only %s", config.SenderOutputPath, err)
+	}
+
+	defer func() {
+		if file != nil {
+			_ = file.Close()
+		}
+	}()
+
+	log.Printf("Wait for %s...", d)
+
+	// wait
+	time.Sleep(d)
+
+	if file == nil {
+		file, err = openFileForRead(config.SenderOutputPath, false, false)
+		if err != nil {
+			return fmt.Errorf("error when open file %s for read-only %s", config.SenderOutputPath, err)
+		}
+		// closer already defined
+	}
+
+	data, err := ioutil.ReadAll(file)
+
+	if err != nil {
+		return fmt.Errorf("error while read file %s: %s", config.SenderOutputPath, err)
+	}
+
+	// simple parsing, suppose that each log record in one line
+	logRecords := strings.Split(string(data), "\n")
+
+	var receivedEventIds []int
+	for _, logRecord := range logRecords {
+
+		logRecord := strings.TrimSpace(logRecord)
+
+		// skip empty strings
+		if logRecord == "" {
+			continue
+		}
+
+		logRecordJson, err := jsonUnmarshalToMap(logRecord)
+		if err != nil {
+			return fmt.Errorf("error when unmarchal logRecord `%s`: %s", logRecord, err)
+		}
+		msg, ok := readStringValueFromMap("msg", logRecordJson)
+		if !ok || msg != "LogSender.Send" {
+			return fmt.Errorf("unexpected value of key `msg`: `%s`", msg)
+		}
+		eventSerialized, ok := readStringValueFromMap("eventSerialized", logRecordJson)
+		if !ok {
+			return errors.New("expected readable key `eventSerialized` in log record")
+		}
+		eventSerializedJson, err := jsonUnmarshalToMap(eventSerialized)
+		if err != nil {
+			return fmt.Errorf("error when unmarchal `eventSerialized` from log record `%s`: %s", eventSerialized, err)
+		}
+		eventId, ok := readIntValueFromMap("id", eventSerializedJson)
+		if !ok || eventId <= 0 {
+			return fmt.Errorf("unexpected value of key `id`: `%d`", eventId)
+		}
+		receivedEventIds = append(receivedEventIds, eventId)
+	}
+
+	expectedEventIds, err := splitStrIntoIntSlice(ids)
+
+	if !isIntSliceEquals(expectedEventIds, receivedEventIds) {
+		return fmt.Errorf("expected slice `%v` not equals received `%v`", expectedEventIds, receivedEventIds)
+	}
+
+	return nil
+}
+
+func (t *featureTest) fieldOfRecordsMustBeNotNil(field, ids string) error {
+
+	eventIds, err := splitStrIntoIntSlice(ids)
+	if err != nil {
+		return err
+	}
+
+	if len(eventIds) <= 0 {
+		return fmt.Errorf("unexpected empty event ids list after parse ids `%s`", ids)
+	}
+
+	config := GetTestConfig()
+
+	for _, eventId := range eventIds {
+		event, err := config.DbStorage.GetEvent(eventId)
+		if err != nil {
+			return fmt.Errorf("error when get event by id %d from db `%s`", eventId, err)
+		}
+		if field == "notified_time" {
+			if !event.IsNotified() {
+				return fmt.Errorf("looks like mark about notifying is not set, `notified_time` is NULL (nil) for event\n`%#v\n`", event)
+			}
+		} else {
+			return fmt.Errorf("unknown field `%s`", field)
+		}
+	}
+
+	return nil
+}
+
 func FeatureContext(s *godog.Suite, t *featureTest) {
 	s.Step(`^I send "([^"]*)" request to "([^"]*)" with "([^"]*)" params:$`, t.iSendRequestToWithParams)
 	s.Step(`^I send "([^"]*)" request to "([^"]*)"$`, t.iSendRequestTo)
@@ -282,5 +395,7 @@ func FeatureContext(s *godog.Suite, t *featureTest) {
 	s.Step(`^The response json should match:$`, t.theResponseJsonShouldMatch)
 	s.Step(`^The DB should be clean$`, t.theDBShouldBeClean)
 	s.Step(`^The response json is EventListResponse filled with events of ids "([^"]*)"$`, t.theResponseJsonIsEventListResponseFilledWithEventsOfIds)
+	s.Step(`^I after wait "([^"]*)" should receive notification about events of ids "([^"]*)"$`, t.iAfterWaitShouldReceiveNotificationAboutEventsOfIds)
+	s.Step(`^Field "([^"]*)" of records "([^"]*)" must be not nil$`, t.fieldOfRecordsMustBeNotNil)
 
 }

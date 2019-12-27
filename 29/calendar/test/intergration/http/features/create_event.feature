@@ -3,6 +3,7 @@ Feature: Create event
   I want to create new event
 
   Scenario: Create event, 200 OK
+    Given Clean DB
     When I send "POST" request to "http://localhost:8888/create_event" with "application/x-www-form-urlencoded" params:
     """
     name=Add test&start=2019-12-21 14:00&end=2019-12-21 15:00&beforeMinutes=10
@@ -16,6 +17,7 @@ Feature: Create event
       | Add test  | 2019-12-21 14:00  | 2019-12-21 15:00  | 10              | nil           |
 
   Scenario: Create event, 400 invalid start date
+    Given Clean DB
     When I send "POST" request to "http://localhost:8888/create_event" with "application/x-www-form-urlencoded" params:
     """
     name=Add test&start=sdfasdf&end=2019-12-21 15:00&beforeMinutes=10
@@ -25,6 +27,7 @@ Feature: Create event
     And The response json should has field "error" with value match "^invalid format of datetime"
 
   Scenario: Create event, 400 invalid end date
+    Given Clean DB
     When I send "POST" request to "http://localhost:8888/create_event" with "application/x-www-form-urlencoded" params:
     """
     name=Add test&start=2019-12-21 14:00&end=dfwedfe&beforeMinutes=10

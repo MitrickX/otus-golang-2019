@@ -3,8 +3,9 @@ package notificaiton
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // Sender interface
@@ -73,6 +74,11 @@ func (s *LogSender) Stop() error {
 // Send method, for this sender just print into log
 func (s *LogSender) Send(info EventInfo) error {
 	t := time.Now()
-	s.logger.Debugf("LogSender.Send (%s) EventInfo: %+v", t, info)
+	slzInfo, _ := serializeEvent(info)
+	s.logger.Desugar().Debug("LogSender.Send",
+		zap.String("datetime", t.String()),
+		zap.String("event", fmt.Sprintf("%#v", info)),
+		zap.String("eventSerialized", string(slzInfo)),
+	)
 	return nil
 }

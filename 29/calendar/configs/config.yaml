@@ -23,6 +23,12 @@ notification:
 
 logger:
   level: "debug"
+  output_paths:
+    - stderr
+    - /tmp/calendar/outlog
+  error_output_paths:
+    - stderr
+    - /tmp/calendar/errlog
 
 app:
   timezone: "Europe/Moscow"
