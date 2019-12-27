@@ -16,4 +16,3 @@ test:
 	docker-compose -f docker-compose-tests.yml up -d --build ;\
 	docker-compose -f docker-compose-tests.yml run tests ./tests --config ./configs/config.yaml --features-path ./features/ || tests_status_code=$$? ;\
 	exit $$tests_status_code ;\
-	

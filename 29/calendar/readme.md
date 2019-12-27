@@ -1,6 +1,9 @@
 Simple calendar with http interface <br>
 In project used cobra (with viper) and zap <br>
 
+**Run integration tests:**<br>
+cd ./build/package && make test
+
 **Docker compose:**<br>
 cd ./build/package && docker-compose up
 
