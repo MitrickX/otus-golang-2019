@@ -46,9 +46,19 @@ func (t *featureTest) iSendRequestToWithParams(method, addr, contentType string,
 	}
 	req.Header.Set("Content-Type", contentType)
 
-	t.r, err = http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
 
-	body, err := ioutil.ReadAll(t.r.Body)
+	if err != nil {
+		return fmt.Errorf("Do request error %s", err)
+	}
+
+	defer func() {
+		_ = res.Body.Close()
+	}()
+
+	t.r = res
+
+	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
 	}

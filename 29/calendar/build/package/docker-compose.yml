@@ -7,8 +7,7 @@ services:
       - POSTGRES_PASSWORD=1234
       - POSTGRES_DB=calendar
     ports:
-      # - 5432
-      - 5555:5432
+      - 5432
       
   flyway:
     image: 'flyway/flyway'
@@ -43,7 +42,6 @@ services:
     command: ./calendar --config ./configs/config.yaml scheduler
     volumes: 
       - ../../configs:/root/configs
-      - /tmp/calendar/scheduler:/tmp/calendar
     depends_on:
       - postgres
       - rabbit
@@ -58,7 +56,6 @@ services:
     command: ./calendar --config ./configs/config.yaml sender
     volumes: 
       - ../../configs:/root/configs
-      - /tmp/calendar/sender:/tmp/calendar
     depends_on:
       - postgres
       - rabbit

@@ -5,7 +5,7 @@ Feature: Get events for today
   Scenario: Get from empty DB
     Given Clean DB
 
-    When I send "GET" request to "http://localhost:8888/events_for_day"
+    When I send "GET" request to "http://http:8888/events_for_day"
 
     Then The response code should be 200
     And The response contentType should be "application/json"
@@ -21,7 +21,7 @@ Feature: Get events for today
       |  1 | test1      | 2019-12-21 14:00  | 2019-12-21 15:00  | 10              | nil           |
       |  2 | test2      | 2021-12-22 15:00  | 2021-12-22 17:00  | nil             | nil           |
 
-    When I send "GET" request to "http://localhost:8888/events_for_day"
+    When I send "GET" request to "http://http:8888/events_for_day"
 
     Then The response code should be 200
     And The response contentType should be "application/json"
@@ -46,7 +46,7 @@ Feature: Get events for today
       |  3 | test3      | Y-m-d 10:00:00      | Y-m-d 15:00:00      | 4               | nil           |
       |  4 | test4      | 2018-10-12 17:00    | 2018-10-13 11:00    | nil             | nil           |
       |  5 | test5      | Y-m-d 14:00:00      | Y-m-d 16:00:00      | nil             | nil           |
-    When I send "GET" request to "http://localhost:8888/events_for_day"
+    When I send "GET" request to "http://http:8888/events_for_day"
 
     Then The response code should be 200
     And The response contentType should be "application/json"

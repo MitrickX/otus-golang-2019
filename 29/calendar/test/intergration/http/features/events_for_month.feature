@@ -5,7 +5,7 @@ Feature: Get events for current month
   Scenario: Get from empty DB
     Given Clean DB
 
-    When I send "GET" request to "http://localhost:8888/events_for_month"
+    When I send "GET" request to "http://http:8888/events_for_month"
 
     Then The response code should be 200
     And The response contentType should be "application/json"
@@ -21,7 +21,7 @@ Feature: Get events for current month
       |  1 | test1      | 2010-12-21 14:00  | 2010-12-21 15:00  | 10              | nil           |
       |  2 | test2      | 2026-12-22 15:00  | 2026-12-22 17:00  | nil             | nil           |
 
-    When I send "GET" request to "http://localhost:8888/events_for_month"
+    When I send "GET" request to "http://http:8888/events_for_month"
 
     Then The response code should be 200
     And The response contentType should be "application/json"
@@ -51,7 +51,7 @@ Feature: Get events for current month
       |  7 | test7      | Y-m-ld H:i:s        | Y-m-ld H:i:s        |   1             | nil           |
       |  8 | test8      | 2001-01-01 12:00:00 | 2001-01-12 H:i:s    |   2             | nil           |
 
-    When I send "GET" request to "http://localhost:8888/events_for_month"
+    When I send "GET" request to "http://http:8888/events_for_month"
 
     Then The response code should be 200
     And The response contentType should be "application/json"

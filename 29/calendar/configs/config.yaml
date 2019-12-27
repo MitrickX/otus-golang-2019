@@ -17,7 +17,7 @@ notification:
     user: "guest"
     password: "guest"
     qname: "events"
-    connect_retries: 20
+    connect_retries: 30
   scheduler:
     scan_timeout: "5s"
 
