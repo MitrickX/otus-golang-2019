@@ -8,14 +8,14 @@ import (
 )
 
 var runnerOptions = godog.Options{
-	Format:    "pretty", // progress, pretty
-	Paths:     []string{"../features/"},
-	Randomize: 0,
+	Format:      "pretty", // progress, pretty
+	Paths:       []string{"../features/"},
+	Randomize:   0,
+	Concurrency: 0,
 }
 
 // Test entry point
 func TestMain(m *testing.M) {
-
 	config := GetTestConfig()
 
 	if len(config.RunnerPaths) > 0 {

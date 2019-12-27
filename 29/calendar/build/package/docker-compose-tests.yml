@@ -69,7 +69,7 @@ services:
       dockerfile: ./build/package/Dockerfile-tests
     environment:
       - SENDER_OUTPUT_PATH=/tmp/calendar/sender/outlog
-    command: ./tests --config ./configs/config.yaml --features-path ./features/
+    #command: ./tests --config ./configs/config.yaml --features-path ./features/
     volumes:
       - ../../configs:/root/configs
       - ../../test/intergration/http/features:/root/features
