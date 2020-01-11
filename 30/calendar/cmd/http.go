@@ -18,9 +18,15 @@ package cmd
 import (
 	httpService "github.com/mitrickx/otus-golang-2019/30/calendar/internal/http"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/logger"
+	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 
 	"github.com/spf13/cobra"
+)
+
+const (
+	defaultHttpPort                = "8080"
+	defaultHttpMetricsExporterPort = "9102"
 )
 
 // httpCmd represents the http command
@@ -38,20 +44,38 @@ func init() {
 }
 
 func runHttpService() {
-	// read port
+	// read port from config
 
-	ports := viper.GetStringMapString("port")
+	port := defaultHttpPort
 
-	port, ok := ports["http"]
-	if !ok {
-		port = "8080"
+	httpConfig := viper.GetStringMap("http")
+	portValue, ok := httpConfig["port"]
+	if ok {
+		portVal, ok := portValue.(string)
+		if ok {
+			port = portVal
+		}
+	}
+
+	exporterPort := defaultHttpMetricsExporterPort
+
+	prometheusConfigValue, ok := httpConfig["prometheus"]
+	prometheusConfig := cast.ToStringMap(prometheusConfigValue)
+	if ok {
+		portValue, ok := prometheusConfig["port"]
+		if ok {
+			portVal, ok := portValue.(string)
+			if ok {
+				exporterPort = portVal
+			}
+		}
 	}
 
 	log := logger.GetLogger()
 
 	storage := NewDbStorage()
 
-	err := httpService.RunService(port, storage, log)
+	err := httpService.RunService(port, storage, log, exporterPort)
 	if err != nil {
 		log.Fatalf("can't run http service %s\n", err)
 	}

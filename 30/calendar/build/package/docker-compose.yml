@@ -32,6 +32,8 @@ services:
       - ../../configs:/root/configs
     ports:
       - '8888:8888'
+      - '9102:9102'
+    restart: on-failure
     depends_on:
       - postgres
 
@@ -61,3 +63,23 @@ services:
       - rabbit
       - http
       - scheduler
+
+  postgres_exporter:
+    image: wrouesnel/postgres_exporter:latest
+    environment:
+      - DATA_SOURCE_NAME=postgresql://otus:1234@postgres:5432/calendar?sslmode=disable
+    restart: on-failure
+    ports:
+    - '9187:9187'
+    depends_on:
+      - postgres
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - '9090:9090'
+    volumes:
+      - ../../configs:/etc/prometheus
+    depends_on:
+      - http
+      - postgres_exporter

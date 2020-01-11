@@ -1,10 +1,14 @@
-port:
-  http: 8888
-  grps: 50051
+http:
+  port: "8888"
+  prometheus:
+    port: "9102"
+
+grps:
+  port: "50051"
 
 db:
   host: "postgres"
-  port: 5432
+  port: "5432"
   dbname: "calendar"
   user: "otus"
   password: "1234"

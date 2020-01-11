@@ -22,6 +22,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+const defaultGrpcPort = "50051"
+
 // grpcCmd represents the grpc command
 var grpcCmd = &cobra.Command{
 	Use:   "grpc",
@@ -37,12 +39,17 @@ func init() {
 }
 
 func runGrpcService() {
-	// read port
-	ports := viper.GetStringMapString("port")
+	// read port from config
 
-	port, ok := ports["grpc"]
-	if !ok {
-		port = "50051"
+	port := defaultGrpcPort
+
+	grpcConfig := viper.GetStringMap("grpc")
+	portValue, ok := grpcConfig["port"]
+	if ok {
+		portVal, ok := portValue.(string)
+		if ok {
+			port = portVal
+		}
 	}
 
 	log := logger.GetLogger()

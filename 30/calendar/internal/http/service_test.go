@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/storage/memory"
 	"io/ioutil"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/storage/memory"
 )
 
 func TestCreateEventOK(t *testing.T) {
@@ -28,7 +29,7 @@ func TestCreateEventOK(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	service.CreatEvent(w, req)
+	service.CreateEvent(w, req)
 
 	resp := w.Result()
 
@@ -103,7 +104,7 @@ func TestCreateEventInvalidDate(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	service.CreatEvent(w, req)
+	service.CreateEvent(w, req)
 
 	resp := w.Result()
 
@@ -676,6 +677,6 @@ func TestGetEventsForMonth(t *testing.T) {
 
 func NewTestService() *Service {
 	storage := memory.NewStorage()
-	service, _ := NewService("", storage, nil)
+	service, _ := NewService("", storage, nil, "")
 	return service
 }
