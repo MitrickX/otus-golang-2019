@@ -18,6 +18,7 @@ package cmd
 import (
 	httpService "github.com/mitrickx/otus-golang-2019/30/calendar/internal/http"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/logger"
+	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/monitoring"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 
@@ -75,7 +76,11 @@ func runHttpService() {
 
 	storage := NewDbStorage()
 
-	err := httpService.RunService(port, storage, log, exporterPort)
+	var metrics *monitoring.HttpMetrics
+	if exporterPort != "" {
+		metrics = monitoring.NewHttpMetrics(exporterPort, log)
+	}
+	err := httpService.RunService(port, storage, log, metrics)
 	if err != nil {
 		log.Fatalf("can't run http service %s\n", err)
 	}

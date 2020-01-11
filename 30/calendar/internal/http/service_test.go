@@ -677,6 +677,6 @@ func TestGetEventsForMonth(t *testing.T) {
 
 func NewTestService() *Service {
 	storage := memory.NewStorage()
-	service, _ := NewService("", storage, nil, "")
+	service, _ := NewService("", storage, nil, nil)
 	return service
 }

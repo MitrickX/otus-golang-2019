@@ -7,13 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/monitoring"
 
 	"github.com/gorilla/mux"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/domain/entities"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	metrics "github.com/slok/go-http-metrics/metrics/prometheus"
-	"github.com/slok/go-http-metrics/middleware"
 	"go.uber.org/zap"
 )
 
@@ -36,58 +33,23 @@ type ErrorResponse struct {
 // Clean architecture approach - not working with inner biz logic layer directly
 type Service struct {
 	Calendar
-	logger         *zap.SugaredLogger
-	port           string
-	exporterPort   string // prometheus http metrics exporter port, if empty string exporter not be run
-	requestCounter prometheus.Counter
-	rpsCounter     *rpsCounter
+	logger  *zap.SugaredLogger
+	port    string
+	metrics *monitoring.HttpMetrics // http metrics manager
 }
 
 // Constructor
-func NewService(port string, storage entities.Storage, logger *zap.SugaredLogger, exporterPort string) (*Service, error) {
+func NewService(port string, storage entities.Storage, logger *zap.SugaredLogger, metrics *monitoring.HttpMetrics) (*Service, error) {
 	service, err := NewCalendar(storage)
 	if err != nil {
 		return nil, err
 	}
 
-	rpsGaugeVecOpts := prometheus.GaugeOpts{
-		Subsystem: "http",
-		Name:      "requests_per_second",
-		Help:      "Max count of requests per second per scrape_interval",
-	}
-	rpsGaugeVec := prometheus.NewGaugeVec(rpsGaugeVecOpts, []string{"method"})
-
-	var rpsCounter *rpsCounter
-	if err := prometheus.Register(rpsGaugeVec); err != nil {
-		if logger != nil {
-			logger.Errorf("can't register rps gauge vector `%s` metric: %s", rpsGaugeVecOpts.Name, err)
-		}
-	} else {
-		rpsCounter = NewRpsCounter(rpsGaugeVec)
-	}
-
-	requestCounterOpts := prometheus.CounterOpts{
-		Subsystem: "http",
-		Name:      "requests_count",
-		Help:      "Total number of requests to http service",
-	}
-
-	var requestCounter prometheus.Counter
-
-	requestCounter = prometheus.NewCounter(requestCounterOpts)
-	if err := prometheus.Register(requestCounter); err != nil {
-		if logger != nil {
-			logger.Errorf("can't register counter `%s` metric: %s", requestCounterOpts.Name, err)
-		}
-	}
-
 	srv := &Service{
-		Calendar:       *service,
-		logger:         logger,
-		port:           port,
-		exporterPort:   exporterPort,
-		requestCounter: requestCounter,
-		rpsCounter:     rpsCounter,
+		Calendar: *service,
+		logger:   logger,
+		port:     port,
+		metrics:  metrics,
 	}
 
 	return srv, nil
@@ -105,63 +67,12 @@ func (service *Service) requestLogMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (service *Service) counterMiddleware(next http.Handler) http.Handler {
-	// if there is not registered metrics will not wrap handler
-	if service.rpsCounter == nil && service.requestCounter == nil {
-		return next
-	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if service.requestCounter != nil {
-			service.requestCounter.Inc()
-		}
-		if service.rpsCounter != nil {
-			service.rpsCounter.Inc(r.URL.Path)
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // Register middleware for measure http metrics and run exporter on proper port
 func (service *Service) metricsMiddleware(next http.Handler) http.Handler {
-
-	if service.exporterPort == "" {
+	if service.metrics == nil {
 		return next
 	}
-
-	// metrics middleware
-	metricsMiddleware := middleware.New(middleware.Config{
-		Recorder: metrics.NewRecorder(metrics.Config{}),
-	})
-	handler := metricsMiddleware.Handler("", next)
-
-	service.runMetricsExporter()
-
-	return handler
-}
-
-func (service *Service) runMetricsExporter() {
-	go func() {
-
-		if service.logger != nil {
-			service.logger.Infof("Try run http metrics prometheus exporter run on port %s", service.exporterPort)
-		}
-
-		// HTTP exporter for prometheus
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			if service.rpsCounter != nil {
-				service.rpsCounter.OutputMaxValues()
-			}
-			next := promhttp.Handler()
-			next.ServeHTTP(w, r)
-		}
-
-		err := http.ListenAndServe(":"+service.exporterPort, http.HandlerFunc(handler))
-		if err != nil {
-			if service.logger != nil {
-				service.logger.Errorf("Service.runMetricsExporter, http listen and serve failed, return error %s", err)
-			}
-		}
-	}()
+	return service.metrics.RegisterMiddleware(next)
 }
 
 // Run http entities service
@@ -179,14 +90,8 @@ func (service *Service) Run() {
 
 	handler = service.metricsMiddleware(handler)
 
-	handler = service.counterMiddleware(handler)
-
 	if service.logger != nil {
 		service.logger.Infof("start server at %s", service.port)
-	}
-
-	if service.rpsCounter != nil {
-		service.rpsCounter.Run()
 	}
 
 	err := http.ListenAndServe(":"+service.port, handler)
@@ -196,8 +101,8 @@ func (service *Service) Run() {
 }
 
 // Run new http entities service
-func RunService(port string, storage entities.Storage, logger *zap.SugaredLogger, exporterPort string) error {
-	service, err := NewService(port, storage, logger, exporterPort)
+func RunService(port string, storage entities.Storage, logger *zap.SugaredLogger, metrics *monitoring.HttpMetrics) error {
+	service, err := NewService(port, storage, logger, metrics)
 	if err != nil {
 		return err
 	}

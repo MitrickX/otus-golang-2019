@@ -1,4 +1,4 @@
-package http
+package monitoring
 
 import (
 	"sync"
@@ -7,16 +7,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type rpsCounter struct {
+type RpsCounter struct {
 	values   map[string][2]int // index 0 for current value, index 1 for maximum value
 	mx       sync.Mutex
 	ticker   *time.Ticker
 	gaugeVec *prometheus.GaugeVec
 }
 
-func NewRpsCounter(gaugeVec *prometheus.GaugeVec) *rpsCounter {
+func NewRpsCounter(gaugeVec *prometheus.GaugeVec) *RpsCounter {
 	values := make(map[string][2]int)
-	return &rpsCounter{
+	return &RpsCounter{
 		values:   values,
 		mx:       sync.Mutex{},
 		ticker:   time.NewTicker(time.Second),
@@ -24,7 +24,7 @@ func NewRpsCounter(gaugeVec *prometheus.GaugeVec) *rpsCounter {
 	}
 }
 
-func (r *rpsCounter) Run() {
+func (r *RpsCounter) Run() {
 	go func() {
 		for range r.ticker.C {
 			r.sync()
@@ -32,7 +32,7 @@ func (r *rpsCounter) Run() {
 	}()
 }
 
-func (r *rpsCounter) sync() {
+func (r *RpsCounter) sync() {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 	for key, pair := range r.values {
@@ -46,11 +46,11 @@ func (r *rpsCounter) sync() {
 	}
 }
 
-func (r *rpsCounter) Stop() {
+func (r *RpsCounter) Stop() {
 	r.ticker.Stop()
 }
 
-func (r *rpsCounter) Inc(key string) {
+func (r *RpsCounter) Inc(key string) {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 	pair := r.values[key]
@@ -58,7 +58,7 @@ func (r *rpsCounter) Inc(key string) {
 	r.values[key] = pair
 }
 
-func (r *rpsCounter) OutputMaxValues() {
+func (r *RpsCounter) OutputMaxValues() {
 	r.sync()
 	r.mx.Lock()
 	defer r.mx.Unlock()

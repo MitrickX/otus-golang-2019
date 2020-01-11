@@ -1,4 +1,4 @@
-package http
+package monitoring
 
 import (
 	"math/rand"
@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func newTestCounter() *rpsCounter {
+func newTestCounter() *RpsCounter {
 
 	rpsGaugeVec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "http_rps",
