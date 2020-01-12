@@ -32,8 +32,6 @@ services:
       - ../../configs:/root/configs
     ports:
       - '8888:8888'
-      - '9102:9102'
-      - '9103:9103'
     restart: on-failure
     depends_on:
       - postgres
@@ -71,7 +69,7 @@ services:
       - DATA_SOURCE_NAME=postgresql://otus:1234@postgres:5432/calendar?sslmode=disable
     restart: on-failure
     ports:
-    - '9187:9187'
+    - 9187
     depends_on:
       - postgres
 

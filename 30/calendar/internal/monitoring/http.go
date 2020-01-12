@@ -43,11 +43,10 @@ func NewHttpMetrics(exporterPort string, logger *zap.SugaredLogger) *HttpMetrics
 
 	requestCounter := prometheus.NewCounter(requestCounterOpts)
 	if err := prometheus.Register(requestCounter); err != nil {
+		requestCounter = nil
 		if logger != nil {
 			logger.Errorf("can't register counter `%s` metric: %s", requestCounterOpts.Name, err)
 		}
-	} else {
-		requestCounter = nil
 	}
 
 	return &HttpMetrics{
