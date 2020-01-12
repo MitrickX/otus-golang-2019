@@ -309,7 +309,7 @@ func (service *Service) writeEventListResponse(w http.ResponseWriter, evens []*E
 	response := &EventListResponse{evens}
 
 	if response.Result == nil {
-		response.Result = make([]*Event, 0, 0) // empty slice must always covert to [] (empty array)
+		response.Result = make([]*Event, 0) // empty slice must always covert to [] (empty array)
 	}
 
 	data, err := json.Marshal(response)

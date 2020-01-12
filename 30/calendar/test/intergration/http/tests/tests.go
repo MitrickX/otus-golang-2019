@@ -224,7 +224,7 @@ func parseStrToTime(str string) (time.Time, error) {
 	satStr := satTime.Format(dateLayout)
 	sunStr := sunTime.Format(dateLayout)
 
-	ld := "31"
+	ld := ""
 	switch nowTime.Month() {
 	case time.January, time.March, time.May, time.July, time.August, time.October, time.December:
 		ld = "31"

@@ -4,14 +4,10 @@ import (
 	"net/http"
 
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/monitoring/counter"
-
-	metrics "github.com/slok/go-http-metrics/metrics/prometheus"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/slok/go-http-metrics/middleware"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	metrics "github.com/slok/go-http-metrics/metrics/prometheus"
+	"github.com/slok/go-http-metrics/middleware"
 	"go.uber.org/zap"
 )
 
@@ -45,13 +41,13 @@ func NewHttpMetrics(exporterPort string, logger *zap.SugaredLogger) *HttpMetrics
 		Help:      "Total number of requests to http service",
 	}
 
-	var requestCounter prometheus.Counter
-
-	requestCounter = prometheus.NewCounter(requestCounterOpts)
+	requestCounter := prometheus.NewCounter(requestCounterOpts)
 	if err := prometheus.Register(requestCounter); err != nil {
 		if logger != nil {
 			logger.Errorf("can't register counter `%s` metric: %s", requestCounterOpts.Name, err)
 		}
+	} else {
+		requestCounter = nil
 	}
 
 	return &HttpMetrics{

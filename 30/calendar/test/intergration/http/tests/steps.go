@@ -26,7 +26,6 @@ type featureTest struct {
 	subMatchResult []string // result of regexp sub-match searching
 	eventId        int      // id of event to deal with in next step(s)
 	eventIds       []int    // id of events to deal with in next step(s)
-	vars           map[string]interface{}
 }
 
 func newFeatureTest() *featureTest {
@@ -353,6 +352,9 @@ func (t *featureTest) iAfterWaitShouldReceiveNotificationAboutEventsOfIds(durati
 	}
 
 	expectedEventIds, err := splitStrIntoIntSlice(ids)
+	if err != nil {
+		return fmt.Errorf("error when slice string into int slice %s", err)
+	}
 
 	if !isIntSliceEquals(expectedEventIds, receivedEventIds) {
 		return fmt.Errorf("expected slice `%v` not equals received `%v`", expectedEventIds, receivedEventIds)

@@ -383,12 +383,11 @@ func (s *Storage) GetStatValues(fields []string) (map[string]interface{}, error)
 
 	result := make(map[string]interface{})
 
-	for rows.Next() {
+	if rows.Next() {
 		err = rows.MapScan(result)
 		if err != nil {
 			return nil, fmt.Errorf("failed get stats from table `pg_stat_user_tables`: %w", err)
 		}
-		break
 	}
 
 	return result, nil
