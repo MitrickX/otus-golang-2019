@@ -2,11 +2,12 @@ package sql
 
 import (
 	"fmt"
-	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/domain/entities"
-	"github.com/spf13/viper"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/domain/entities"
+	"github.com/spf13/viper"
 )
 
 // These tests test operation on actual DB
@@ -635,6 +636,32 @@ func TestMarkEventAsNotified(t *testing.T) {
 
 	if !dt.Equal(nTime) {
 		t.Errorf("Notified time of event with id %d not equal to original time", id)
+	}
+}
+
+func TestGetStatValues(t *testing.T) {
+	if config.skip {
+		t.SkipNow()
+	}
+
+	storage := NewTestStorage(t, &config)
+
+	stat, err := storage.GetStatValues([]string{"n_live_tup"})
+	if err != nil {
+		t.Errorf("unexpected error %s\n", err)
+		return
+	}
+
+	val, ok := stat["n_live_tup"]
+	if !ok {
+		t.Errorf("expect there is field `n_live_tup` in map %#v\n", stat)
+		return
+	}
+
+	_, ok = val.(int64)
+	if !ok {
+		t.Errorf("expect `n_live_tup` is int64 %#v (%T) \n", val, val)
+		return
 	}
 }
 

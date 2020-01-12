@@ -118,7 +118,7 @@ func (m *HttpMetrics) runMetricsExporter() {
 		err := http.ListenAndServe(":"+m.exporterPort, http.HandlerFunc(handler))
 		if err != nil {
 			if m.logger != nil {
-				m.logger.Errorf("Service.runMetricsExporter, http listen and serve failed, return error %s", err)
+				m.logger.Errorf("HttpMetrics.runMetricsExporter, http listen and serve failed, return error %s", err)
 			}
 		}
 	}()

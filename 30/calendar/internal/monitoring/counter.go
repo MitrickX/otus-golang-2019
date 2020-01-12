@@ -1,6 +1,7 @@
 package monitoring
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -67,6 +68,7 @@ func (r *RpsCounter) OutputMaxValues() {
 	}
 	for key, pair := range r.values {
 		maxValue := pair[1]
+		log.Printf("maxValue=%v\n", maxValue)
 		r.gaugeVec.WithLabelValues(key).Set(float64(maxValue))
 		pair[1] = 0
 		r.values[key] = pair

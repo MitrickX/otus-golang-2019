@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/domain/entities"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -60,10 +61,15 @@ func NewConfig(m map[string]string) (*Config, error) {
 		}
 	}
 
-	connectRetries, err := strconv.Atoi(m["connect_retries"])
-	if err != nil {
-		return nil, fmt.Errorf("connect_retries key error %w", err)
+	connectRetries := 3
+	if val, ok := m["connect_retries"]; ok && val != "" {
+		var err error
+		connectRetries, err = strconv.Atoi(m["connect_retries"])
+		if err != nil {
+			return nil, fmt.Errorf("connect_retries key error %w", err)
+		}
 	}
+
 	return &Config{
 		Host:           m["host"],
 		Port:           m["port"],
@@ -355,6 +361,79 @@ func (s *Storage) InsertEvent(event entities.Event) (int, error) {
 
 	return id, nil
 
+}
+
+// Get values from `pg_stat_user_tables` table for table 'events'
+// It is not part of storage interface
+func (s *Storage) GetStatValues(fields []string) (map[string]interface{}, error) {
+
+	query := fmt.Sprintf(`SELECT %s FROM pg_stat_user_tables WHERE relname = :relname`, strings.Join(fields, ","))
+
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+
+	defer cancel()
+
+	rows, err := s.db.NamedQueryContext(ctx, query, map[string]interface{}{
+		"relname": "events",
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed get stats from table `pg_stat_user_tables`: %w", err)
+	}
+
+	result := make(map[string]interface{})
+
+	for rows.Next() {
+		err = rows.MapScan(result)
+		if err != nil {
+			return nil, fmt.Errorf("failed get stats from table `pg_stat_user_tables`: %w", err)
+		}
+		break
+	}
+
+	return result, nil
+}
+
+// Get `n_live_tup` value from `pg_stat_user_tables` table for table 'events'
+// It is not part of storage interface
+func (s *Storage) GetStatValueNLiveTup() (int64, error) {
+
+	field := "n_live_tup"
+	fields := []string{field}
+
+	var err error
+
+	stat, err := s.GetStatValues(fields)
+	if err != nil {
+		return 0, err
+	}
+
+	val, ok := stat[field]
+	if !ok {
+		return 0, fmt.Errorf("unknown field `%s` in stat result", field)
+	}
+
+	var resVal int64
+	switch v := val.(type) {
+	case int64:
+		resVal = v
+	case int:
+		resVal = int64(v)
+	case int8:
+		resVal = int64(v)
+	case int16:
+		resVal = int64(v)
+	case int32:
+		resVal = int64(v)
+	case float32:
+		resVal = int64(v)
+	case float64:
+		resVal = int64(v)
+	default:
+		err = fmt.Errorf("can't convert to int64 value %+v of type %T", val, val)
+	}
+
+	return resVal, err
 }
 
 func (s *Storage) getEvents(query string, arg interface{}) ([]entities.Event, error) {

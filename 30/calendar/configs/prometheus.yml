@@ -10,4 +10,4 @@ scrape_configs:
       - targets: ['http:9102']
   - job_name: 'pg'
     static_configs:
-      - targets: ['postgres_exporter:9187']
+      - targets: ['postgres_exporter:9187', 'http:9103']

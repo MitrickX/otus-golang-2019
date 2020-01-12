@@ -1,20 +1,25 @@
 package cmd
 
 import (
+	"log"
+
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/domain/entities"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/logger"
+	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/monitoring"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/notificaiton"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/storage/memory"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/storage/sql"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"log"
 )
 
 var cfgFile string
 
-const cfgDefaultFilePath = "./configs/config.yaml"
+const (
+	cfgDefaultFilePath            = "./configs/config.yaml"
+	defaultSqlMetricsExporterPort = "9103"
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -70,6 +75,7 @@ func NewDbStorage() entities.Storage {
 	var storage entities.Storage
 
 	dbConf := viper.GetStringMapString("db")
+
 	if dbConf == nil {
 		storage = memory.NewStorage()
 	} else {
@@ -84,6 +90,29 @@ func NewDbStorage() entities.Storage {
 	}
 
 	return storage
+}
+
+func NewSqlMetrics(storage *sql.Storage) (*monitoring.SqlMetrics, error) {
+
+	log := logger.GetLogger()
+
+	dbConf := viper.GetStringMap("db")
+
+	exporterPort := defaultSqlMetricsExporterPort
+
+	prometheusConfigValue, ok := dbConf["prometheus"]
+	prometheusConfig := cast.ToStringMap(prometheusConfigValue)
+	if ok {
+		portValue, ok := prometheusConfig["port"]
+		if ok {
+			portVal, ok := portValue.(string)
+			if ok {
+				exporterPort = portVal
+			}
+		}
+	}
+
+	return monitoring.NewSqlMetrics(storage, exporterPort, log)
 }
 
 func NewNotificationQueue() notificaiton.Queue {

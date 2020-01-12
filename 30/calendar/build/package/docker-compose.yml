@@ -33,6 +33,7 @@ services:
     ports:
       - '8888:8888'
       - '9102:9102'
+      - '9103:9103'
     restart: on-failure
     depends_on:
       - postgres
