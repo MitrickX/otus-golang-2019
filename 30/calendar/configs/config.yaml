@@ -26,6 +26,9 @@ notification:
     connect_retries: 30
   scheduler:
     scan_timeout: "5s"
+  sender:
+    prometheus:
+      port: "9104"
 
 logger:
   level: "debug"

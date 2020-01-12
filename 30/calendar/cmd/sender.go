@@ -17,8 +17,15 @@ package cmd
 
 import (
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/logger"
+	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/monitoring"
 	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/notificaiton"
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+const (
+	defaultSenderMetricsExporterPort = "9104"
 )
 
 // senderCmd represents the sender command
@@ -38,10 +45,44 @@ func init() {
 // Run notification sender (this sender just print into log)
 func runNotificationSender() {
 	log := logger.GetLogger()
+
+	// register prometheus metrics manager
+	exporterPort := getExporterPortFromConfig()
+
+	senderMetrics := monitoring.NewSenderMetrics(exporterPort, log)
+
+	senderMetrics.RegisterExporter()
+
 	queue := NewNotificationQueue()
-	sender := notificaiton.NewLogSender(queue, *log)
+	sender := notificaiton.NewLogSender(queue, *log, senderMetrics)
+
 	err := sender.Run()
 	if err != nil {
 		log.Fatal("can't run sender, error happened: %s", err)
 	}
+}
+
+func getExporterPortFromConfig() string {
+	exporterPort := defaultSenderMetricsExporterPort
+
+	notificationConfig := viper.GetStringMap("notification")
+
+	senderConfig, ok := notificationConfig["sender"]
+	senderCfg := cast.ToStringMap(senderConfig)
+
+	if ok {
+		prometheusConfigValue, ok := senderCfg["prometheus"]
+		prometheusConfig := cast.ToStringMap(prometheusConfigValue)
+		if ok {
+			portValue, ok := prometheusConfig["port"]
+			if ok {
+				portVal, ok := portValue.(string)
+				if ok {
+					exporterPort = portVal
+				}
+			}
+		}
+	}
+
+	return exporterPort
 }

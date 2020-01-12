@@ -3,6 +3,8 @@ package monitoring
 import (
 	"net/http"
 
+	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/monitoring/counter"
+
 	metrics "github.com/slok/go-http-metrics/metrics/prometheus"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -16,7 +18,7 @@ import (
 type HttpMetrics struct {
 	logger         *zap.SugaredLogger
 	requestCounter prometheus.Counter
-	rpsCounter     *RpsCounter
+	rpsCounter     *counter.RpsVecCounter
 	exporterPort   string // prometheus http metrics exporter port, if empty string exporter not be run
 }
 
@@ -28,13 +30,13 @@ func NewHttpMetrics(exporterPort string, logger *zap.SugaredLogger) *HttpMetrics
 	}
 	rpsGaugeVec := prometheus.NewGaugeVec(rpsGaugeVecOpts, []string{"method"})
 
-	var rpsCounter *RpsCounter
+	var rpsCounter *counter.RpsVecCounter
 	if err := prometheus.Register(rpsGaugeVec); err != nil {
 		if logger != nil {
 			logger.Errorf("can't register rps gauge vector `%s` metric: %s", rpsGaugeVecOpts.Name, err)
 		}
 	} else {
-		rpsCounter = NewRpsCounter(rpsGaugeVec)
+		rpsCounter = counter.NewRpsVecCounter(rpsGaugeVec)
 	}
 
 	requestCounterOpts := prometheus.CounterOpts{

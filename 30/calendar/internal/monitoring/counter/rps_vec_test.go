@@ -1,4 +1,4 @@
-package monitoring
+package counter
 
 import (
 	"math/rand"
@@ -10,14 +10,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func newTestCounter() *RpsCounter {
+func newTestCounter() *RpsVecCounter {
 
 	rpsGaugeVec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "http_rps",
 		Help: "Http request per second",
 	}, []string{"method"})
 
-	counter := NewRpsCounter(rpsGaugeVec)
+	counter := NewRpsVecCounter(rpsGaugeVec)
 	counter.ticker.Stop()
 	counter.ticker = time.NewTicker(200 * time.Millisecond)
 	return counter

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mitrickx/otus-golang-2019/30/calendar/internal/monitoring"
+
 	"go.uber.org/zap"
 )
 
@@ -21,13 +23,15 @@ type LogSender struct {
 	logger   *zap.SugaredLogger
 	eventsCh <-chan EventInfo
 	cancel   context.CancelFunc
+	metrics  *monitoring.SenderMetrics
 }
 
 // Constructor
-func NewLogSender(queue Queue, logger zap.SugaredLogger) *LogSender {
+func NewLogSender(queue Queue, logger zap.SugaredLogger, metrics *monitoring.SenderMetrics) *LogSender {
 	return &LogSender{
-		queue:  queue,
-		logger: &logger,
+		queue:   queue,
+		logger:  &logger,
+		metrics: metrics,
 	}
 }
 
@@ -68,11 +72,19 @@ func (s *LogSender) Stop() error {
 	if s.cancel != nil {
 		s.cancel()
 	}
+	if s.metrics != nil {
+		s.metrics.Stop()
+	}
 	return nil
 }
 
 // Send method, for this sender just print into log
 func (s *LogSender) Send(info EventInfo) error {
+
+	if s.metrics != nil {
+		s.metrics.IncSenderCounter()
+	}
+
 	t := time.Now()
 	slzInfo, _ := serializeEvent(info)
 	s.logger.Desugar().Debug("LogSender.Send",

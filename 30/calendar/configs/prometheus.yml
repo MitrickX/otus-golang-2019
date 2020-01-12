@@ -2,12 +2,16 @@ global:
   scrape_interval: 1m
 
 scrape_configs:
-  #- job_name: 'prometheus'
-  #  static_configs:
-  #    - targets: ['localhost:9090']
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
   - job_name: 'http'
     static_configs:
       - targets: ['http:9102']
   - job_name: 'pg'
     static_configs:
       - targets: ['postgres_exporter:9187', 'http:9103']
+
+  - job_name: 'sender'
+    static_configs:
+      - targets: ['sender:9104']
